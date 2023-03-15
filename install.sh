@@ -66,7 +66,7 @@ fi
 # But oh well, not enough time to do it
 # hacky command it is
 conda config --add channels conda-forge
-conda create -n ${ENVNAME} matplotlib ruptures pandas numpy scipy pyfiglet
+conda create -n ${ENVNAME} matplotlib ruptures pandas numpy scipy pyfiglet uproot
 if ! find_in_conda_env $ENVNAME;
 then
     echo "Failed to create environment "${ENVNAME}". Abort."
