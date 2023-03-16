@@ -22,7 +22,7 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 def plotOutliner(ax, fig, runs, values, uncert, 
                  runsRejected, edgeRuns, highlight,
                  means, ranges, ytitle, showAllRunID,
-                 plotRange, rejectionRange):
+                 plotRange, rejectionRange, showPseudoID):
     # edges cover the first and last run
     idEdges = [0] + np.searchsorted(runs, edgeRuns).tolist() + [runs.shape[0]]
     x = np.arange(values.shape[0])
@@ -59,29 +59,30 @@ def plotOutliner(ax, fig, runs, values, uncert,
     meanBelow = means[np.searchsorted(edgeRuns, runs[idBelow])]
     for xarr, m in zip(idBelow, meanBelow):
         ax.annotate('', xytext=(xarr, m), xycoords='data', 
-                    xy=(xarr, lowerBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'))
+                    xy=(xarr, lowerBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'), zorder=10)
 
     idAbove = x[values > upperBound]
     meanAbove = means[np.searchsorted(edgeRuns, runs[idAbove])]
     for xarr, m in zip(idAbove, meanAbove):
         ax.annotate('', xytext=(xarr, m), xycoords='data', 
-                    xy=(xarr, upperBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'))
+                    xy=(xarr, upperBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'), zorder=10)
 
     # convert x-axis into run id
     ax.set_ylim(lowerBound, upperBound)
     ax.set_xlim(0, x.shape[0]-1)
     ax.set_ylabel(ytitle)
+    ax.set_xlabel('Run ID')
+
     if showAllRunID:
         plt.xticks(x)
         ax.set_xticklabels(runs, rotation=90)
-    else:
+    elif not showPseudoID:
         import matplotlib.ticker as ticker
         fig.canvas.draw()
         xLabelID = [int(item.get_text()) for item in ax.get_xticklabels()]
         ax.xaxis.set_major_locator(ticker.FixedLocator(xLabelID)) # can't zoom in due to limitations of matplotlib
         xLabel = [str(runs[id]) if id < runs.shape[0] else id for id in xLabelID]
-        ax.set_xticklabels(xLabel)
-        ax.set_xlabel('Run ID')
+        ax.set_xticklabels(xLabel, rotation=45, ha='right')
 
 
 def appendRunInfo(ax, fig, ele, energy):
