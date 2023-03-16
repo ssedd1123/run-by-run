@@ -27,7 +27,18 @@ def plotOutliner(ax, fig, runs, values, uncert,
     idEdges = [0] + np.searchsorted(runs, edgeRuns).tolist() + [runs.shape[0]]
     x = np.arange(values.shape[0])
 
-    # 5 SD ranges
+    # rejected data
+    # convert run numbers to array id
+    idRejected = np.searchsorted(runs, runsRejected)
+
+    # plot ranges
+    onlyGoodRuns = np.delete(values, idRejected)
+    onlyGoodMean = onlyGoodRuns.mean()
+    onlyGoodStd = onlyGoodRuns.std()
+    upperBound = onlyGoodMean + plotRange*onlyGoodStd
+    lowerBound = onlyGoodMean - plotRange*onlyGoodStd
+
+
     ax.fill_between(idEdges, (means-ranges).tolist() + [0], (means+ranges).tolist() + [0], step='post', color='green', alpha=0.5,
                     label='%g-RMS  ' % rejectionRange)
     # 10 SD ranges
@@ -35,26 +46,24 @@ def plotOutliner(ax, fig, runs, values, uncert,
                     label='%s-RMS' % (2*rejectionRange))
     # mean of each segment
     ax.step(idEdges, means.tolist() + [0], where='post', linestyle='--')
+    xpad = 0.005*x.shape[0]
+    ypad = 0.03*(upperBound - lowerBound)
+    for edge in idEdges[:-1]:
+        ax.annotate(str(runs[edge]) + ' ', xy=(edge, upperBound - ypad), xytext=(edge + xpad, upperBound - ypad), 
+                    bbox=dict(boxstyle='square', alpha=0, pad=0),
+                    rotation=90, horizontalalignment='left', verticalalignment='top', 
+                    size=int(0.8*SMALL_SIZE), arrowprops=dict(arrowstyle='->', ec='black', relpos=(1.01, 1)), zorder=100)
+
     # data itself
     ax.errorbar(x, values, yerr=uncert, color='blue', fmt='o', zorder=5)
-    # rejected data
-    # convert run numbers to array id
-    idRejected = np.searchsorted(runs, runsRejected)
-
     if len(runsRejected) > 0:
-        ax.errorbar(x[idRejected], values[idRejected], yerr=uncert[idRejected], color='red', markerfacecolor='blue', zorder=6, fmt='o', label='badruns')
+        ax.errorbar(x[idRejected], values[idRejected], yerr=uncert[idRejected], color='red', markerfacecolor='blue', zorder=6, fmt='o', label='%d badruns' % idRejected.shape[0])
         # highlight rejected data due to THIS condition
-        ax.scatter(x[idRejected][highlight], values[idRejected][highlight], color='red', zorder=7, label='%s bad' % ytitle)
+        ax.scatter(x[idRejected][highlight], values[idRejected][highlight], color='red', zorder=7, label='%d %s bad' % (np.sum(highlight), ytitle))
         # segment boundaries
     for id in idEdges:
         ax.axvline(id, linestyle='--', color='b')
     # out of bound runs
-    onlyGoodRuns = np.delete(values, idRejected)
-    onlyGoodMean = onlyGoodRuns.mean()
-    onlyGoodStd = onlyGoodRuns.std()
-    upperBound = onlyGoodMean + plotRange*onlyGoodStd
-    lowerBound = onlyGoodMean - plotRange*onlyGoodStd
-
     idBelow = x[values < lowerBound]
     meanBelow = means[np.searchsorted(edgeRuns, runs[idBelow])]
     for xarr, m in zip(idBelow, meanBelow):
@@ -72,6 +81,7 @@ def plotOutliner(ax, fig, runs, values, uncert,
     ax.set_xlim(0, x.shape[0]-1)
     ax.set_ylabel(ytitle)
     ax.set_xlabel('Run ID')
+    ax.text(0.8, 0.9, '%d total runs' % values.shape[0], transform=ax.transAxes)
 
     if showAllRunID:
         plt.xticks(x)
@@ -82,10 +92,10 @@ def plotOutliner(ax, fig, runs, values, uncert,
         xLabelID = [int(item.get_text()) for item in ax.get_xticklabels()]
         ax.xaxis.set_major_locator(ticker.FixedLocator(xLabelID)) # can't zoom in due to limitations of matplotlib
         xLabel = [str(runs[id]) if id < runs.shape[0] else id for id in xLabelID]
-        ax.set_xticklabels(xLabel, rotation=45, ha='right')
+        ax.set_xticklabels(xLabel, rotation=30, ha='right')
 
 
 def appendRunInfo(ax, fig, ele, energy):
     ax.text(0.1, 0.9, 'STAR', weight='bold', transform=fig.transFigure)
     ax.text(0.15, 0.9, '%s+%s $\sqrt{s_{NN}}$ = %s GeV' % (ele, ele, energy), transform=fig.transFigure)
-    ax.legend(bbox_to_anchor=(0.35, 1.0), loc='lower left', ncol=4, frameon=False, columnspacing=0.05, borderpad=0) 
+    ax.legend(bbox_to_anchor=(0.35, 1.0), loc='lower left', ncol=4, frameon=False, columnspacing=0.01, borderpad=0, handletextpad=0.1) 

@@ -83,8 +83,13 @@ if __name__ == '__main__':
     parser.add_argument('--batch', action='store_true', help='Batch mode. Plots won\'t appear throught x-11 terminal')
     parser.add_argument('--allRunID', action='store_true', help='When used, Run ID of EVERY SINGLE RUN is shown on QA plots. May not be suitable if you have tones of runs.')
     parser.add_argument('--pseudoID', action='store_true', help='Show run ID in ascending order of apparence from 0 instead of the STAR formated run ID')
+    parser.add_argument('-p', '--pen', nargs='+', type=float, default=[0.5, 1., 2., 5., 9.], help='(list of) penality for segmentation code to try. (default: %(default)s)')
+    parser.add_argument('-c', '--cores', type=int, default=5, help='Number of available cores. (default: %(default)s)')
+
+
 
     args = parser.parse_args()
+    print(args.pen)
 
     # read data from file
     print('Reading TProfile from %s and variable names from %s' % (args.input, args.varNames))
@@ -94,11 +99,11 @@ if __name__ == '__main__':
     # begin run segmentation and rejection
     print('Executing run QA')
     runsRejected = reasonsRejected = mean = std = edgeRuns = None
-    with Pool(5) as pool:
+    with Pool(args.cores) as pool:
         # run different penalty setting on different cores
         for ruj, rej, me, st, ed in pool.imap_unordered(partial(segmentAndReject, runs, x, xerr, 
                                                                 min_size=args.minSize, stdRange=args.rejectionRange), 
-                                                        [0.5, 1, 2, 5, 9]): 
+                                                        args.pen): 
             # choose penalty that rejectes the most number of runs
             if runsRejected is None or len(ruj) > len(runsRejected):
                 runsRejected, reasonsRejected, mean, std, edgeRuns = ruj, rej, me, st, ed
