@@ -80,7 +80,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--sNN', required=True, help='Beam energy')
     parser.add_argument('-rr', '--rejectionRange', type=float, default=5, help='The factor of SD range beyon which a run is rejected (default: %(default)s)')
     parser.add_argument('-pr', '--plotRange', type=float, default=10, help='The factor of SD of all good runs in the QA plot (default: %(default)s)')
-    parser.add_argument('-ms', '--minSize', type=int, default=5, help='Minimum number of runs in a segment (default: %(default)s)')
+    parser.add_argument('-ms', '--minSize', type=int, default=10, help='Minimum number of runs in a segment (default: %(default)s)')
     parser.add_argument('--genPDF', action='store_true', help='When used, QA plots will be stored with name <varName>.pdf')
     parser.add_argument('--batch', action='store_true', help='Batch mode. Plots won\'t appear throught x-11 terminal')
     parser.add_argument('--allRunID', action='store_true', help='When used, Run ID of EVERY SINGLE RUN is shown on QA plots. May not be suitable if you have tones of runs.')
