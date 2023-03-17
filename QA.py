@@ -11,7 +11,7 @@ from functools import partial
 import argparse
 import pyfiglet
 
-def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, maxIter=100, useJMLR=False, useMAD=False, **kwargs):
+def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, maxIter=100, useJMLR=False, useMAD=False, weights=None, **kwargs):
     if useJMLR:
         print('Execution with JMLR')
     else:
@@ -25,7 +25,7 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
 
     for _ in range(maxIter):
         result = segmentation(pen=pen, min_size=min_size, signal=x_copy, gamma=gamma, removeLastRun=True, useJMLR=useJMLR, **kwargs)
-        runRj, reasonRj, mean, std = outlinerDetector(runs_copy, x_copy, xerr_copy, result, stdRange=stdRange, useMAD=useMAD)
+        runRj, reasonRj, mean, std = outlinerDetector(runs_copy, x_copy, xerr_copy, result, stdRange=stdRange, useMAD=useMAD, weights=weights)
         edgeRuns = runs_copy[result]
 
         if runRj.shape[0] == 0:
@@ -38,6 +38,7 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
         runs_copy  = np.delete(runs_copy, idRejected)
         x_copy     = np.delete(x_copy, idRejected, axis=0)
         xerr_copy  = np.delete(xerr_copy, idRejected, axis=0)
+        weights = np.delete(weights, idRejected, axis=0)
 
     if len(runsRejected) > 0:
         runsRejected = np.concatenate(runsRejected)
@@ -91,18 +92,39 @@ if __name__ == '__main__':
     parser.add_argument('--JMLR', action='store_true', help='Determine number of change points with heristics from JMLR paper (Section 3.3.2 of https://www.jmlr.org/papers/volume20/16-155/16-155.pdf). Enabling it will disable --cores and --pen flag as it only uses one core.')
     parser.add_argument('--MAD', action='store_true', help='Use Median Absolute Deviation instead of standard deviation. Formula follos that 1.48*MAD=STD assuming Normal distribution.')
     parser.add_argument('-he', '--hideEdgeRuns', action='store_true', help='Hide run numbers on segment edge')
-
+    parser.add_argument('-w', '--weights', choices=['None', 'invErr', 'entries'], default='entries', help='Weighting factor for each run when segment statistics are calculated. (default: %(default)s)')
 
 
     args = parser.parse_args()
     if args.JMLR:
+        print('Using JMLR to determine segmentation penality. Only use 1 core')
         args.cores = 1
         args.pen = [1]
+    if args.MAD:
+        print('Rejection is only done once, iterations on repeated rejections are disabled')
+        args.maxIter = 1
 
     # read data from file
     print('Reading TProfile from %s and variable names from %s' % (args.input, args.varNames))
     varNames = getVarNames(args.varNames)
-    runs, x, xerr, x_mean, x_std = readFromROOT(args.input, varNames)
+    runs, x, xerr, x_mean, x_std, counts = readFromROOT(args.input, varNames)
+
+    weights = None
+    if args.weights == 'None':
+        weights = np.ones(x.shape)
+    elif args.weights == 'invErr':
+        # check for zero uncertainty
+        id = np.where(xerr==0)
+        if len(id) > 0:
+            print('Errorbar size of 0 is found on')
+            for i, j in zip(id[0], id[1]):
+                print('Run %d on variable %s' % (runs[i], varNames[j]))
+            raise Exception('Cannot use invErr as weight if any of the errorbar size is zero')
+        weights = np.array(1/xerr)
+    elif args.weights == 'entries':
+        weights = counts
+    else:
+        raise Exception('Did not recognize weight option ' + args.weights)
 
     # begin run segmentation and rejection
     print('Executing run QA')
@@ -110,7 +132,8 @@ if __name__ == '__main__':
     with Pool(args.cores) as pool:
         # run different penalty setting on different cores
         for ruj, rej, me, st, ed in pool.imap_unordered(partial(segmentAndReject, runs, x, xerr, useJMLR=args.JMLR, useMAD=args.MAD,
-                                                                min_size=args.minSize, stdRange=args.rejectionRange, maxIter=args.maxIter), 
+                                                                min_size=args.minSize, stdRange=args.rejectionRange, maxIter=args.maxIter,
+                                                                weights=weights), 
                                                         args.pen): 
             # choose penalty that rejectes the most number of runs
             if runsRejected is None or len(ruj) > len(runsRejected):

@@ -1,22 +1,34 @@
 import numpy as np
 
-def outlinerSegment(runs, values, uncert, stdRange=3):
-    std = values.std(axis=0)
-    mean = values.mean(axis=0)
+def outlinerSegment(runs, values, uncert, stdRange=3, weights=None):
+    mean = np.average(values, axis=0, weights=weights)
+    variance = np.average((values - mean)**2, weights=weights, axis=0)
+    std = np.sqrt(variance)
     idRejectedReason = np.abs(values - mean) > stdRange*std + uncert
     idRejected = np.any(idRejectedReason, axis=1)
     return runs[idRejected], idRejectedReason[idRejected], mean, stdRange*std
 
-def outlinerSegmentMAD(runs, values, uncert, stdRange=3):
+def weightedMedian(values, weights=None):
+    if weights is None:
+        return np.median(values, axis=0)
+    iarr = np.argsort(values, axis=0)
+    carr = np.cumsum(weights, axis=0)
+    med = []
+    for i, c, v in zip(iarr.T, carr.T, values.T):
+        idm = i[np.searchsorted(c, 0.5*c[-1])]
+        med.append(v[idm])
+    return np.array(med)
+
+def outlinerSegmentMAD(runs, values, uncert, weights=None, stdRange=3):
     stdRange = stdRange/0.683
-    median = np.median(values, axis=0)
+    median = weightedMedian(values, weights)
     absDev = np.abs(values - median)
-    MAD = np.median(absDev, axis=0)
+    MAD = weightedMedian(absDev, weights)
     idRejectedReason = np.abs(values - median) > stdRange*MAD + uncert
     idRejected = np.any(idRejectedReason, axis=1)
     return runs[idRejected], idRejectedReason[idRejected], median, stdRange*MAD
 
-def outlinerDetector(runs, values, uncert, idSegments, useMAD, **kwargs):
+def outlinerDetector(runs, values, uncert, idSegments, useMAD, weights, **kwargs):
     runsRejected = np.array([])
     idRejected = []
     stdRange = []
@@ -27,7 +39,7 @@ def outlinerDetector(runs, values, uncert, idSegments, useMAD, **kwargs):
         outSeg = outlinerSegment
 
     for lowEdge, upEdge in zip([0] + idSegments, idSegments + [runs.shape[0]]):
-        runsRejectedSeg, idRejectedSeg, meanSeg, stdRangeSeg = outSeg(runs[lowEdge:upEdge], values[lowEdge:upEdge], uncert[lowEdge:upEdge], **kwargs)
+        runsRejectedSeg, idRejectedSeg, meanSeg, stdRangeSeg = outSeg(runs[lowEdge:upEdge], values[lowEdge:upEdge], uncert[lowEdge:upEdge], weights=weights[lowEdge:upEdge], **kwargs)
         stdRange.append(stdRangeSeg)
         mean.append(meanSeg)
         if runsRejectedSeg.shape[0] > 0:
