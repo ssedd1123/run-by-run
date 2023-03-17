@@ -1,3 +1,4 @@
+import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.font_manager as font_manager
@@ -74,14 +75,21 @@ def plotOutlier(ax, fig, runs, values, uncert,
     idBelow = x[values < lowerBound]
     meanBelow = means[np.searchsorted(edgeRuns, runs[idBelow])]
     for xarr, m in zip(idBelow, meanBelow):
-        ax.annotate('', xytext=(xarr, m), xycoords='data', 
-                    xy=(xarr, lowerBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'), zorder=10)
+        if lowerBound <= m and m <= upperBound:
+            ax.annotate('', xytext=(xarr, m), xycoords='data', 
+                        xy=(xarr, lowerBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'), zorder=10)
+        else:
+            warnings.warn('Mean of a segment lies beyond the plotting region. This can happen if the weighting factor strongly skew the mean/median. You should widen the plot range with -pr <NO STD>')
 
     idAbove = x[values > upperBound]
     meanAbove = means[np.searchsorted(edgeRuns, runs[idAbove])]
     for xarr, m in zip(idAbove, meanAbove):
-        ax.annotate('', xytext=(xarr, m), xycoords='data', 
-                    xy=(xarr, upperBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'), zorder=10)
+        if lowerBound <= m and m <= upperBound:
+            ax.annotate('', xytext=(xarr, m), xycoords='data', 
+                        xy=(xarr, upperBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'), zorder=10)
+        else:
+            warnings.warn('Mean of a segment lies beyond the plotting region. This can happen if the weighting factor strongly skew the mean/median. You should widen the plot range with -pr <NO STD>')
+
 
     # convert x-axis into run id
     ax.set_ylim(lowerBound, upperBound)
