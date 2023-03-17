@@ -1,6 +1,6 @@
 import numpy as np
 
-def outlinerSegment(runs, values, uncert, stdRange=3, weights=None):
+def outlierSegment(runs, values, uncert, stdRange=3, weights=None):
     mean = np.average(values, axis=0, weights=weights)
     variance = np.average((values - mean)**2, weights=weights, axis=0)
     std = np.sqrt(variance)
@@ -19,7 +19,7 @@ def weightedMedian(values, weights=None):
         med.append(v[idm])
     return np.array(med)
 
-def outlinerSegmentMAD(runs, values, uncert, weights=None, stdRange=3):
+def outlierSegmentMAD(runs, values, uncert, weights=None, stdRange=3):
     stdRange = stdRange/0.683
     median = weightedMedian(values, weights)
     absDev = np.abs(values - median)
@@ -28,15 +28,15 @@ def outlinerSegmentMAD(runs, values, uncert, weights=None, stdRange=3):
     idRejected = np.any(idRejectedReason, axis=1)
     return runs[idRejected], idRejectedReason[idRejected], median, stdRange*MAD
 
-def outlinerDetector(runs, values, uncert, idSegments, useMAD, weights, **kwargs):
+def outlierDetector(runs, values, uncert, idSegments, useMAD, weights, **kwargs):
     runsRejected = np.array([])
     idRejected = []
     stdRange = []
     mean = []
     if useMAD:
-        outSeg = outlinerSegmentMAD
+        outSeg = outlierSegmentMAD
     else:
-        outSeg = outlinerSegment
+        outSeg = outlierSegment
 
     for lowEdge, upEdge in zip([0] + idSegments, idSegments + [runs.shape[0]]):
         runsRejectedSeg, idRejectedSeg, meanSeg, stdRangeSeg = outSeg(runs[lowEdge:upEdge], values[lowEdge:upEdge], uncert[lowEdge:upEdge], weights=weights[lowEdge:upEdge], **kwargs)
@@ -54,10 +54,10 @@ if __name__ == '__main__':
     runs = np.arange(0, 3e3)
     values = np.array([[1,1]]*runs.shape[0])
     uncert = np.zeros(values.shape)
-    print(outlinerDetector(runs, values, uncert, [0, 1000, 2000, runs.shape[0]-1]))
+    print(outlierDetector(runs, values, uncert, [0, 1000, 2000, runs.shape[0]-1]))
     values[1, 1] = 1e8
     values[1000, 0] = 1e8
-    print(outlinerDetector(runs, values, uncert, [0, 1000, 2000, runs.shape[0]-1]))
-    print(outlinerDetector(runs, values, uncert, [0, 2000, runs.shape[0]-1]))
+    print(outlierDetector(runs, values, uncert, [0, 1000, 2000, runs.shape[0]-1]))
+    print(outlierDetector(runs, values, uncert, [0, 2000, runs.shape[0]-1]))
 
 

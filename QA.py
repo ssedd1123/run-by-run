@@ -1,6 +1,6 @@
 from Segmentation2 import segmentation, plotSegmentationAndRejection
 from readFromROOT import getVarNames, readFromROOT
-from outlinerDetector import outlinerDetector
+from outlierDetector import outlierDetector
 from plotRejection import plotOutliner, appendRunInfo
 
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
 
     for _ in range(maxIter):
         result = segmentation(pen=pen, min_size=min_size, signal=x_copy, gamma=gamma, removeLastRun=True, useJMLR=useJMLR, **kwargs)
-        runRj, reasonRj, mean, std = outlinerDetector(runs_copy, x_copy, xerr_copy, result, stdRange=stdRange, useMAD=useMAD, weights=weights)
+        runRj, reasonRj, mean, std = outlierDetector(runs_copy, x_copy, xerr_copy, result, stdRange=stdRange, useMAD=useMAD, weights=weights)
         edgeRuns = runs_copy[result]
 
         if runRj.shape[0] == 0:
