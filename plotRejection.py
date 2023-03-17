@@ -22,7 +22,7 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 def plotOutliner(ax, fig, runs, values, uncert, 
                  runsRejected, edgeRuns, highlight,
                  means, ranges, ytitle, showAllRunID,
-                 plotRange, rejectionRange, showPseudoID):
+                 plotRange, rejectionRange, showPseudoID, showEdgeRuns, devName='RMS'):
     # edges cover the first and last run
     idEdges = [0] + np.searchsorted(runs, edgeRuns).tolist() + [runs.shape[0]]
     x = np.arange(values.shape[0])
@@ -40,19 +40,26 @@ def plotOutliner(ax, fig, runs, values, uncert,
 
 
     ax.fill_between(idEdges, (means-ranges).tolist() + [0], (means+ranges).tolist() + [0], step='post', color='green', alpha=0.5,
-                    label='%g-RMS  ' % rejectionRange)
+                    label='%g-%s  ' % (rejectionRange, devName))
     # 10 SD ranges
     ax.fill_between(idEdges, (means-2*ranges).tolist() + [0], (means+2*ranges).tolist() + [0], step='post', color='yellow', alpha=0.5,
-                    label='%s-RMS' % (2*rejectionRange))
+                    label='%s-%s' % (2*rejectionRange, devName))
     # mean of each segment
     ax.step(idEdges, means.tolist() + [0], where='post', linestyle='--')
-    xpad = 0.005*x.shape[0]
-    ypad = 0.03*(upperBound - lowerBound)
-    for edge in idEdges[:-1]:
-        ax.annotate(str(runs[edge]) + ' ', xy=(edge, upperBound - ypad), xytext=(edge + xpad, upperBound - ypad), 
+    if showEdgeRuns:
+        xpad = 0.005*x.shape[0]
+        ypad = 0.03*(upperBound - lowerBound)
+        for edge in idEdges[:-1]:
+            ax.annotate(str(runs[edge]) + ' ', xy=(edge, upperBound - ypad), xytext=(edge + xpad, upperBound - ypad), 
+                        bbox=dict(boxstyle='square', alpha=0, pad=0),
+                        rotation=90, horizontalalignment='left', verticalalignment='top', 
+                        size=int(0.8*SMALL_SIZE), arrowprops=dict(arrowstyle='->', ec='black', relpos=(1.01, 1)), zorder=100)
+        # label the last edge from the other side
+        ax.annotate(str(runs[-1]) + ' ', xy=(idEdges[-1] - 1, upperBound - ypad), xytext=(idEdges[-1] - 1 - xpad, upperBound - ypad), 
                     bbox=dict(boxstyle='square', alpha=0, pad=0),
-                    rotation=90, horizontalalignment='left', verticalalignment='top', 
-                    size=int(0.8*SMALL_SIZE), arrowprops=dict(arrowstyle='->', ec='black', relpos=(1.01, 1)), zorder=100)
+                    rotation=90, horizontalalignment='right', verticalalignment='top', 
+                    size=int(0.8*SMALL_SIZE), arrowprops=dict(arrowstyle='->', ec='black', relpos=(-0.8, 1)), zorder=100)
+
 
     # data itself
     ax.errorbar(x, values, yerr=uncert, color='blue', fmt='o', zorder=5)
@@ -97,5 +104,5 @@ def plotOutliner(ax, fig, runs, values, uncert,
 
 def appendRunInfo(ax, fig, ele, energy):
     ax.text(0.1, 0.9, 'STAR', weight='bold', transform=fig.transFigure)
-    ax.text(0.15, 0.9, '%s+%s $\sqrt{s_{NN}}$ = %s GeV' % (ele, ele, energy), transform=fig.transFigure)
+    ax.text(0.15, 0.9, '%s $\sqrt{s_{NN}}$ = %s GeV' % (ele, energy), transform=fig.transFigure)
     ax.legend(bbox_to_anchor=(0.35, 1.0), loc='lower left', ncol=4, frameon=False, columnspacing=0.01, borderpad=0, handletextpad=0.1) 

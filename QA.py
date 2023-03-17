@@ -11,8 +11,11 @@ from functools import partial
 import argparse
 import pyfiglet
 
-def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, **kwargs):
-    print('Execution with pen = %g' % pen)
+def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, maxIter=100, useJMLR=False, useMAD=False, **kwargs):
+    if useJMLR:
+        print('Execution with JMLR')
+    else:
+        print('Execution with pen = %g' % pen)
     runs_copy = np.copy(runs)
     x_copy = np.copy(x)
     xerr_copy = np.copy(xerr)
@@ -20,9 +23,9 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
     runsRejected = []
     reasonsRejected = []
 
-    while True:
-        result = segmentation(pen=pen, min_size=min_size, signal=x_copy, gamma=gamma, removeLastRun=True, **kwargs)
-        runRj, reasonRj, mean, std = outlinerDetector(runs_copy, x_copy, xerr_copy, result, stdRange=stdRange)
+    for _ in range(maxIter):
+        result = segmentation(pen=pen, min_size=min_size, signal=x_copy, gamma=gamma, removeLastRun=True, useJMLR=useJMLR, **kwargs)
+        runRj, reasonRj, mean, std = outlinerDetector(runs_copy, x_copy, xerr_copy, result, stdRange=stdRange, useMAD=useMAD)
         edgeRuns = runs_copy[result]
 
         if runRj.shape[0] == 0:
@@ -35,7 +38,6 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
         runs_copy  = np.delete(runs_copy, idRejected)
         x_copy     = np.delete(x_copy, idRejected, axis=0)
         xerr_copy  = np.delete(xerr_copy, idRejected, axis=0)
-
 
     if len(runsRejected) > 0:
         runsRejected = np.concatenate(runsRejected)
@@ -85,11 +87,17 @@ if __name__ == '__main__':
     parser.add_argument('--pseudoID', action='store_true', help='Show run ID in ascending order of apparence from 0 instead of the STAR formated run ID')
     parser.add_argument('-p', '--pen', nargs='+', type=float, default=[0.5, 1., 2., 5., 9.], help='(list of) penality for segmentation code to try. (default: %(default)s)')
     parser.add_argument('-c', '--cores', type=int, default=5, help='Number of available cores. (default: %(default)s)')
+    parser.add_argument('-it', '--maxIter', type=int, default=5, help='Maximum iterations. (default: %(default)s)')
+    parser.add_argument('--JMLR', action='store_true', help='Determine number of change points with heristics from JMLR paper (Section 3.3.2 of https://www.jmlr.org/papers/volume20/16-155/16-155.pdf). Enabling it will disable --cores and --pen flag as it only uses one core.')
+    parser.add_argument('--MAD', action='store_true', help='Use Median Absolute Deviation instead of standard deviation. Formula follos that 1.48*MAD=STD assuming Normal distribution.')
+    parser.add_argument('-he', '--hideEdgeRuns', action='store_true', help='Hide run numbers on segment edge')
 
 
 
     args = parser.parse_args()
-    print(args.pen)
+    if args.JMLR:
+        args.cores = 1
+        args.pen = [1]
 
     # read data from file
     print('Reading TProfile from %s and variable names from %s' % (args.input, args.varNames))
@@ -101,8 +109,8 @@ if __name__ == '__main__':
     runsRejected = reasonsRejected = mean = std = edgeRuns = None
     with Pool(args.cores) as pool:
         # run different penalty setting on different cores
-        for ruj, rej, me, st, ed in pool.imap_unordered(partial(segmentAndReject, runs, x, xerr, 
-                                                                min_size=args.minSize, stdRange=args.rejectionRange), 
+        for ruj, rej, me, st, ed in pool.imap_unordered(partial(segmentAndReject, runs, x, xerr, useJMLR=args.JMLR, useMAD=args.MAD,
+                                                                min_size=args.minSize, stdRange=args.rejectionRange, maxIter=args.maxIter), 
                                                         args.pen): 
             # choose penalty that rejectes the most number of runs
             if runsRejected is None or len(ruj) > len(runsRejected):
@@ -119,7 +127,7 @@ if __name__ == '__main__':
         plotOutliner(ax, fig, runs, xcol*globalStd + globalMean, #convert normalized values to real values 
                      errcol*globalStd, runsRejected, edgeRuns, highlight, 
                      mcol*globalStd + globalMean, stdcol*globalStd, ytitle, args.allRunID,
-                     args.plotRange, args.rejectionRange, args.pseudoID)
+                     args.plotRange, args.rejectionRange, args.pseudoID, not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS')
         appendRunInfo(ax, fig, args.element, args.sNN)
         plt.tight_layout()
         if args.genPDF:

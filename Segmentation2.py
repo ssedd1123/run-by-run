@@ -58,17 +58,18 @@ def segmentation(pen, min_size, signal, gamma, useNormal=False, useJMLR=False, r
     #algo = rpt.Pelt(custom_cost=c, min_size=min_size, jump=1)
     if useJMLR:
         # determine pen with heuristic from https://github.com/deepcharles/ruptures/issues/223
-        return kernseg(signal, int(0.5*signal.shape[0]/min_size), min_size)
-    if useNormal:
-        model = 'normal'
-        kwarg = {}
-        pen = np.log(signal.shape[0])*signal.shape[1]
+        result = kernseg(signal, int(0.5*signal.shape[0]/min_size), min_size)
     else:
-        model = 'rbf'
-        kwarg={'gamma': gamma}
-        pen = pen
-    algo = rpt.Pelt(model=model, min_size=min_size, jump=1, params=kwarg).fit(signal)
-    result = algo.predict(pen=pen)
+        if useNormal:
+            model = 'normal'
+            kwarg = {}
+            pen = np.log(signal.shape[0])*signal.shape[1]
+        else:
+            model = 'rbf'
+            kwarg={'gamma': gamma}
+            pen = pen
+        algo = rpt.Pelt(model=model, min_size=min_size, jump=1, params=kwarg).fit(signal)
+        result = algo.predict(pen=pen)
     if removeLastRun:
         return result[:-1]
     else:

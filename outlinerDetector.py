@@ -7,14 +7,27 @@ def outlinerSegment(runs, values, uncert, stdRange=3):
     idRejected = np.any(idRejectedReason, axis=1)
     return runs[idRejected], idRejectedReason[idRejected], mean, stdRange*std
 
+def outlinerSegmentMAD(runs, values, uncert, stdRange=3):
+    stdRange = stdRange/0.683
+    median = np.median(values, axis=0)
+    absDev = np.abs(values - median)
+    MAD = np.median(absDev, axis=0)
+    idRejectedReason = np.abs(values - median) > stdRange*MAD + uncert
+    idRejected = np.any(idRejectedReason, axis=1)
+    return runs[idRejected], idRejectedReason[idRejected], median, stdRange*MAD
 
-def outlinerDetector(runs, values, uncert, idSegments, **kwargs):
+def outlinerDetector(runs, values, uncert, idSegments, useMAD, **kwargs):
     runsRejected = np.array([])
     idRejected = []
     stdRange = []
     mean = []
+    if useMAD:
+        outSeg = outlinerSegmentMAD
+    else:
+        outSeg = outlinerSegment
+
     for lowEdge, upEdge in zip([0] + idSegments, idSegments + [runs.shape[0]]):
-        runsRejectedSeg, idRejectedSeg, meanSeg, stdRangeSeg = outlinerSegment(runs[lowEdge:upEdge], values[lowEdge:upEdge], uncert[lowEdge:upEdge], **kwargs)
+        runsRejectedSeg, idRejectedSeg, meanSeg, stdRangeSeg = outSeg(runs[lowEdge:upEdge], values[lowEdge:upEdge], uncert[lowEdge:upEdge], **kwargs)
         stdRange.append(stdRangeSeg)
         mean.append(meanSeg)
         if runsRejectedSeg.shape[0] > 0:
