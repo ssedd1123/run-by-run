@@ -1,7 +1,7 @@
 from Segmentation2 import segmentation, plotSegmentationAndRejection
 from readFromROOT import getVarNames, readFromROOT
 from outlierDetector import outlierDetector
-from plotRejection import plotOutliner, appendRunInfo
+from plotRejection import plotOutlier, appendRunInfo
 
 import matplotlib.pyplot as plt
 import argparse
@@ -49,11 +49,16 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
 
     return runsRejected, reasonsRejected, mean, std, edgeRuns
 
-def writeBadRuns(runsRejected, reasonsRejected, varNames, filename):
+def writeBadRuns(runsRejected, reasonsRejected, varNames, filename, noReasons):
     varNames = np.array(varNames)
     with open(filename, 'w') as f:
-        for run, reason in zip(runsRejected, reasonsRejected):
-            f.write('%d %s\n' % (run, ' '.join(varNames[reason].tolist())))
+        # print runs in increasing order
+        id = np.argsort(runsRejected)
+        for run, reason in zip(runsRejected[id], reasonsRejected[id]):
+            if noReasons:
+                f.write('%d\n' % run)
+            else:
+                f.write('%d %s\n' % (run, ' '.join(varNames[reason].tolist())))
 
 def printBanner():
     print(u'\u2500' * 100)
@@ -93,6 +98,7 @@ if __name__ == '__main__':
     parser.add_argument('--MAD', action='store_true', help='Use Median Absolute Deviation instead of standard deviation. Formula follos that 1.48*MAD=STD assuming Normal distribution.')
     parser.add_argument('-he', '--hideEdgeRuns', action='store_true', help='Hide run numbers on segment edge')
     parser.add_argument('-w', '--weights', choices=['None', 'invErr', 'entries'], default='entries', help='Weighting factor for each run when segment statistics are calculated. (default: %(default)s)')
+    parser.add_argument('-nr', '--noReasons', action='store_true', help='Do not print rejection reasons on output')
 
 
     args = parser.parse_args()
@@ -141,13 +147,13 @@ if __name__ == '__main__':
 
     # write result to text file
     print('Writing bad runs to %s' % args.output)
-    writeBadRuns(runsRejected, reasonsRejected, varNames, args.output)
+    writeBadRuns(runsRejected, reasonsRejected, varNames, args.output, args.noReasons)
 
     # plot every observable
     print('Plot QA result.')
     for xcol, errcol, highlight, mcol, stdcol, globalMean, globalStd, ytitle in zip(x.T, xerr.T, reasonsRejected.T, mean.T, std.T, x_mean, x_std, varNames):
         fig, ax = plt.subplots(figsize=(15, 5))
-        plotOutliner(ax, fig, runs, xcol*globalStd + globalMean, #convert normalized values to real values 
+        plotOutlier(ax, fig, runs, xcol*globalStd + globalMean, #convert normalized values to real values 
                      errcol*globalStd, runsRejected, edgeRuns, highlight, 
                      mcol*globalStd + globalMean, stdcol*globalStd, ytitle, args.allRunID,
                      args.plotRange, args.rejectionRange, args.pseudoID, not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS')

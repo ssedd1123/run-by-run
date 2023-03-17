@@ -19,10 +19,10 @@ plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
-def plotOutliner(ax, fig, runs, values, uncert, 
-                 runsRejected, edgeRuns, highlight,
-                 means, ranges, ytitle, showAllRunID,
-                 plotRange, rejectionRange, showPseudoID, showEdgeRuns, devName='RMS'):
+def plotOutlier(ax, fig, runs, values, uncert, 
+                runsRejected, edgeRuns, highlight,
+                means, ranges, ytitle, showAllRunID,
+                plotRange, rejectionRange, showPseudoID, showEdgeRuns, devName='RMS'):
     # edges cover the first and last run
     idEdges = [0] + np.searchsorted(runs, edgeRuns).tolist() + [runs.shape[0]]
     x = np.arange(values.shape[0])
