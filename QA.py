@@ -121,7 +121,7 @@ if __name__ == '__main__':
     elif args.weights == 'invErr':
         # check for zero uncertainty
         id = np.where(xerr==0)
-        if len(id) > 0:
+        if id[0].shape[0] > 0:
             print('Errorbar size of 0 is found on')
             for i, j in zip(id[0], id[1]):
                 print('Run %d on variable %s' % (runs[i], varNames[j]))
