@@ -12,3 +12,9 @@ After that, simply type
 $> python3 QA.py -h
 
 To read the instructions.
+
+An example ROOT file and QA_variable.list is provided in this repository. You can run them with,
+
+$>python3 QA.py -i qahist.root -v QA_variable.list -e Au+Au -s 9.8 -o badrun.list
+
+It will generate the text file badrun.list which contains the final result.
