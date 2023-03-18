@@ -6,6 +6,14 @@ def getVarNames(varList='QA_variable.list'):
         qaList = file_.read().rstrip('\n').split('\n')
     return [var.rstrip(' ') for var in qaList]
 
+def getNamesAllTProfile(filename):
+    file_ = uproot.open(filename)
+    TProfiles = []
+    for key, obj in file_.items():
+        if obj.classname == 'TProfile':
+             TProfiles.append(key)
+    return TProfiles
+       
 
 def readFromROOT(filename, varNames):
     file_ = uproot.open(filename)
@@ -16,16 +24,12 @@ def readFromROOT(filename, varNames):
 
     for var in varNames:
         hist = file_[var]
+        if hist.classname != 'TProfile':
+            raise Exception(var + ' is not a TProfile. It is a %s. Please convert it to TProfile' % hist.classname)
         runs = np.floor(hist.axis(0).centers()).astype(int)
         x = hist.values()
         x_err = hist.errors()#error_mode="s")
         x_counts = hist.counts(False)
-
-        #id = (x_counts > 0) & (x_err > 0)
-        #x = x[id]
-        #x_err = x_err[id]
-        #runs = runs[id]
-        #x_counts = x_counts[id]
 
         x_normal.append(x)
         x_err_normal.append(x_err)

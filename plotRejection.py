@@ -23,7 +23,8 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 def plotOutlier(ax, fig, runs, values, uncert, 
                 runsRejected, edgeRuns, highlight,
                 means, ranges, ytitle, showAllRunID,
-                plotRange, rejectionRange, showPseudoID, showEdgeRuns, devName='RMS'):
+                plotRange, rejectionRange, showPseudoID, 
+                showEdgeRuns, devName='RMS', counts=None):
     # edges cover the first and last run
     idEdges = [0] + np.searchsorted(runs, edgeRuns).tolist() + [runs.shape[0]]
     x = np.arange(values.shape[0])
@@ -96,7 +97,15 @@ def plotOutlier(ax, fig, runs, values, uncert,
     ax.set_xlim(0, x.shape[0]-1)
     ax.set_ylabel(ytitle)
     ax.set_xlabel('Run ID')
-    ax.text(0.8, 0.9, '%d total runs' % values.shape[0], transform=ax.transAxes)
+    stat = '%d total runs' % values.shape[0]
+    if counts is not None:
+        totStats = np.sum(counts)
+        rejectedStats = np.sum(counts[idRejected])
+        stat = stat + '\nTot events = %d' % totStats
+        stat = stat + '\nRejected events = %d' % rejectedStats
+        stat = stat + '\nRejection rate = %.2f%%' % (rejectedStats*100/float(totStats))
+    ax.text(0.7, 0.01, stat, transform=ax.transAxes)
+
 
     if showAllRunID:
         plt.xticks(x)
@@ -108,6 +117,7 @@ def plotOutlier(ax, fig, runs, values, uncert,
         ax.xaxis.set_major_locator(ticker.FixedLocator(xLabelID)) # can't zoom in due to limitations of matplotlib
         xLabel = [str(runs[id]) if id < runs.shape[0] else id for id in xLabelID]
         ax.set_xticklabels(xLabel, rotation=30, ha='right')
+    return stat
 
 
 def appendRunInfo(ax, fig, ele, energy):

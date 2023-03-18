@@ -1,5 +1,5 @@
 from Segmentation2 import segmentation, plotSegmentationAndRejection
-from readFromROOT import getVarNames, readFromROOT
+from readFromROOT import getVarNames, readFromROOT, getNamesAllTProfile
 from outlierDetector import outlierDetector
 from plotRejection import plotOutlier, appendRunInfo
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='run-by-run QA program')
     parser.add_argument('-i', '--input', required=True, help='ROOT files that contains all the QA TProfile')
     parser.add_argument('-o', '--output', required=True, help='Filename for the output text file with all the bad runs')
-    parser.add_argument('-v', '--varNames', required=True, help='Txt files with all the variable names for QA')
+    parser.add_argument('-v', '--varNames', help='Txt files with all the variable names for QA. If it is not set, it will read ALL TProfiles in the ROOT file.')
     parser.add_argument('-e', '--element', required=True, help='Element of your reaction')
     parser.add_argument('-s', '--sNN', required=True, help='Beam energy')
     parser.add_argument('-rr', '--rejectionRange', type=float, default=5, help='The factor of SD range beyon which a run is rejected (default: %(default)s)')
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     parser.add_argument('-he', '--hideEdgeRuns', action='store_true', help='Hide run numbers on segment edge')
     parser.add_argument('-w', '--weights', choices=['None', 'invErr', 'entries'], default='entries', help='Weighting factor for each run when segment statistics are calculated. (default: %(default)s)')
     parser.add_argument('-nr', '--noReasons', action='store_true', help='Do not print rejection reasons on output')
-
+    parser.add_argument('-pg', '--plotGood', action='store_true', help='Plot QA plots again, but only with good runs')
 
     args = parser.parse_args()
     if args.JMLR:
@@ -111,10 +111,21 @@ if __name__ == '__main__':
         args.maxIter = 1
 
     # read data from file
-    print('Reading TProfile from %s and variable names from %s' % (args.input, args.varNames))
-    varNames = getVarNames(args.varNames)
+    print('Reading TProfile from %s' % (args.input))
+    if args.varNames is None:
+        varNames = getNamesAllTProfile(args.input)
+    else:
+        varNames = getVarNames(args.varNames)
+    print('Name of the TProfile being read:')
+    print('\n'.join(varNames))
+    if args.varNames is None:
+        print('If you want to exclude some TProfiles, copy the names of the required TProfiles, put them in a text file and put the name of the text file in the argument of this script as -v <filename>')
+    else:
+        print('Those are the names of TProfiles in %s' % args.varNames)
+    print('*'*100)
     runs, x, xerr, x_mean, x_std, counts = readFromROOT(args.input, varNames)
 
+    # calulate weights of each runs
     weights = None
     if args.weights == 'None':
         weights = np.ones(x.shape)
@@ -150,13 +161,15 @@ if __name__ == '__main__':
     writeBadRuns(runsRejected, reasonsRejected, varNames, args.output, args.noReasons)
 
     # plot every observable
+    statSummary = ''
     print('Plot QA result.')
-    for xcol, errcol, highlight, mcol, stdcol, globalMean, globalStd, ytitle in zip(x.T, xerr.T, reasonsRejected.T, mean.T, std.T, x_mean, x_std, varNames):
+    for xcol, errcol, highlight, mcol, stdcol, globalMean, globalStd, ytitle, coun in zip(x.T, xerr.T, reasonsRejected.T, mean.T, std.T, x_mean, x_std, varNames, counts.T):
         fig, ax = plt.subplots(figsize=(15, 5))
-        plotOutlier(ax, fig, runs, xcol*globalStd + globalMean, #convert normalized values to real values 
-                     errcol*globalStd, runsRejected, edgeRuns, highlight, 
-                     mcol*globalStd + globalMean, stdcol*globalStd, ytitle, args.allRunID,
-                     args.plotRange, args.rejectionRange, args.pseudoID, not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS')
+        statSummary = plotOutlier(ax, fig, runs, xcol*globalStd + globalMean, #convert normalized values to real values 
+                                   errcol*globalStd, runsRejected, edgeRuns, highlight, 
+                                   mcol*globalStd + globalMean, stdcol*globalStd, ytitle, args.allRunID,
+                                   args.plotRange, args.rejectionRange, args.pseudoID, 
+                                   not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS', coun)
         appendRunInfo(ax, fig, args.element, args.sNN)
         plt.tight_layout()
         if args.genPDF:
@@ -164,4 +177,25 @@ if __name__ == '__main__':
         if not args.batch:
             plt.show()
 
+    if args.plotGood:
+        print('Plot QA result wight Just good runs.')
+        idRejected = np.searchsorted(runs, runsRejected)
+        for xcol, errcol, highlight, mcol, stdcol, globalMean, globalStd, ytitle in zip(x.T, xerr.T, reasonsRejected.T, mean.T, std.T, x_mean, x_std, varNames):
+            fig, ax = plt.subplots(figsize=(15, 5))
+            plotOutlier(ax, fig, np.delete(runs, idRejected), np.delete(xcol, idRejected)*globalStd + globalMean, #convert normalized values to real values 
+                         np.delete(errcol, idRejected)*globalStd, [], edgeRuns, highlight, 
+                         mcol*globalStd + globalMean, stdcol*globalStd, ytitle, args.allRunID,
+                         args.plotRange, args.rejectionRange, args.pseudoID, not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS')
+            appendRunInfo(ax, fig, args.element, args.sNN)
+            plt.tight_layout()
+            if args.genPDF:
+                plt.savefig(ytitle + '.goog.pdf')
+            if not args.batch:
+                plt.show()
+
+
+    print('*'*100)
+    print('%d runs rejected' % runsRejected.shape[0])
+    print(statSummary)
+    print('*'*100)
 
