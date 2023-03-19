@@ -1,6 +1,7 @@
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
 import matplotlib.font_manager as font_manager
 font_dir = ['ttf']
 for font in font_manager.findSystemFonts(font_dir):
@@ -124,3 +125,75 @@ def appendRunInfo(ax, fig, ele, energy):
     ax.text(0.1, 0.9, 'STAR', weight='bold', transform=fig.transFigure)
     ax.text(0.15, 0.9, '%s $\sqrt{s_{NN}}$ = %s GeV' % (ele, energy), transform=fig.transFigure)
     ax.legend(bbox_to_anchor=(0.35, 1.0), loc='lower left', ncol=4, frameon=False, columnspacing=0.01, borderpad=0, handletextpad=0.1) 
+
+
+if __name__ == '__main__':
+    from readFromROOT import getVarNames, readFromROOT, getNamesAllTProfile
+    parser = argparse.ArgumentParser(description='Plot runs')
+    parser.add_argument('-i', '--input', required=True, help='ROOT files that contains all the QA TProfile')
+    parser.add_argument('-br', '--badRuns', help='List of bad runs in txt format.')
+    parser.add_argument('-v', '--varNames', help='Txt files with all the variable names for QA. If it is not set, it will read ALL TProfiles in the ROOT file.')
+    parser.add_argument('-e', '--element', required=True, help='Element of your reaction')
+    parser.add_argument('-s', '--sNN', required=True, help='Beam energy')
+    parser.add_argument('--allRunID', action='store_true', help='When used, Run ID of EVERY SINGLE RUN is shown on QA plots. May not be suitable if you have tones of runs.')
+    parser.add_argument('--pseudoID', action='store_true', help='Show run ID in ascending order of apparence from 0 instead of the STAR formated run ID')
+    parser.add_argument('-pr', '--plotRange', type=float, default=10, help='The factor of SD of all good runs in the QA plot (default: %(default)s)')
+    parser.add_argument('--genPDF', action='store_true', help='When used, QA plots will be stored with name <varName>.pdf')
+    parser.add_argument('--batch', action='store_true', help='Batch mode. Plots won\'t appear throught x-11 terminal')
+    parser.add_argument('-pg', '--plotGood', action='store_true', help='Plot QA plots again, but only with good runs')
+    parser.add_argument('-m', '--mapping', help='If x-axis of TProfile does not corresponds to STAR run ID, you can supply a file that translate bin low edge to STAR ID')
+
+    args = parser.parse_args()
+    if args.varNames is None:
+        varNames = getNamesAllTProfile(args.input)
+    else:
+        varNames = getVarNames(args.varNames)
+    print('Name of the TProfile being read:')
+    print('\n'.join(varNames))
+    if args.varNames is None:
+        print('If you want to exclude some TProfiles, copy the names of the required TProfiles, put them in a text file and put the name of the text file in the argument of this script as -v <filename>')
+    else:
+        print('Those are the names of TProfiles in %s' % args.varNames)
+    print('*'*100)
+    runs, x, xerr, x_mean, x_std, counts = readFromROOT(args.input, varNames, args.mapping)
+
+    runsRejected = []
+    if args.badRuns is not None:
+        with open(args.badRuns) as f:
+            runsRejected = [int(line.split(' ')[0]) for line in f]
+    print('Plotting result')
+    for xcol, errcol, globalMean, globalStd, ytitle, coun in zip(x.T, xerr.T, x_mean, x_std, varNames, counts.T):
+        fig, ax = plt.subplots(figsize=(15, 5))
+        statSummary = plotOutlier(ax, fig, runs, xcol*globalStd + globalMean, #convert normalized values to real values 
+                                   errcol*globalStd, runsRejected, np.array([]), [], 
+                                   np.array([globalMean]), np.array([globalStd]), ytitle, args.allRunID,
+                                   args.plotRange, 5, args.pseudoID, 
+                                   False, 'RMS', coun)
+        appendRunInfo(ax, fig, args.element, args.sNN)
+        plt.tight_layout()
+        if args.genPDF:
+            plt.savefig(ytitle + '.pdf')
+    if not args.batch:
+        print('Close all the plots to continue')
+        plt.show()
+
+    if args.plotGood:
+        print('Plot QA result wight Just good runs.')
+        idRejected = np.searchsorted(runs, runsRejected)
+        for xcol, errcol, globalMean, globalStd, ytitle, coun in zip(x.T, xerr.T, x_mean, x_std, varNames, counts.T):
+            fig, ax = plt.subplots(figsize=(15, 5))
+            statSummary = plotOutlier(ax, fig, np.delete(runs, idRejected), np.delete(xcol, idRejected)*globalStd + globalMean, #convert normalized values to real values 
+                                       np.delete(errcol, idRejected)*globalStd, [], np.array([]), [], 
+                                       np.array([globalMean]), np.array([globalStd]), ytitle, args.allRunID,
+                                       args.plotRange, 5, args.pseudoID, 
+                                       False, 'RMS', coun)
+            appendRunInfo(ax, fig, args.element, args.sNN)
+            plt.tight_layout()
+            if args.genPDF:
+                plt.savefig(ytitle + '.good.pdf')
+        if not args.batch:
+            print('Close all the plots to continue')
+            plt.show()
+
+
+

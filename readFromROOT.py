@@ -15,7 +15,7 @@ def getNamesAllTProfile(filename):
     return TProfiles
        
 
-def readFromROOT(filename, varNames):
+def readFromROOT(filename, varNames, runIDTranslate=None):
     file_ = uproot.open(filename)
     runs = None
     x_normal = []
@@ -38,6 +38,15 @@ def readFromROOT(filename, varNames):
     x_normal = np.array(x_normal).T
     x_err_normal = np.array(x_err_normal).T
     counts = np.array(counts).T
+    if runIDTranslate is not None:
+        with open(runIDTranslate) as f:
+            runsTrans = np.array([int(line) for line in f])
+            runs = runsTrans[runs]
+            idSort = np.argsort(runs)
+            runs = runs[idSort]
+            x_normal = x_normal[idSort]
+            x_err_normal = x_err_normal[idSort]
+            counts = counts[idSort]
 
     id = np.all(counts > 0, axis=1) & np.all(x_err_normal > 0, axis=1)
     x_normal = x_normal[id]

@@ -100,6 +100,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--weights', choices=['None', 'invErr', 'entries'], default='entries', help='Weighting factor for each run when segment statistics are calculated. (default: %(default)s)')
     parser.add_argument('-nr', '--noReasons', action='store_true', help='Do not print rejection reasons on output')
     parser.add_argument('-pg', '--plotGood', action='store_true', help='Plot QA plots again, but only with good runs')
+    parser.add_argument('-m', '--mapping', help='If x-axis of TProfile does not corresponds to STAR run ID, you can supply a file that translate bin low edge to STAR ID')
 
     args = parser.parse_args()
     if args.JMLR:
@@ -123,7 +124,7 @@ if __name__ == '__main__':
     else:
         print('Those are the names of TProfiles in %s' % args.varNames)
     print('*'*100)
-    runs, x, xerr, x_mean, x_std, counts = readFromROOT(args.input, varNames)
+    runs, x, xerr, x_mean, x_std, counts = readFromROOT(args.input, varNames, args.mapping)
 
     # calulate weights of each runs
     weights = None
@@ -174,8 +175,9 @@ if __name__ == '__main__':
         plt.tight_layout()
         if args.genPDF:
             plt.savefig(ytitle + '.pdf')
-        if not args.batch:
-            plt.show()
+    if not args.batch:
+        print('Close all the plots to continue')
+        plt.show()
 
     if args.plotGood:
         print('Plot QA result wight Just good runs.')
@@ -189,9 +191,10 @@ if __name__ == '__main__':
             appendRunInfo(ax, fig, args.element, args.sNN)
             plt.tight_layout()
             if args.genPDF:
-                plt.savefig(ytitle + '.goog.pdf')
-            if not args.batch:
-                plt.show()
+                plt.savefig(ytitle + '.good.pdf')
+        if not args.batch:
+            print('Close all the plots to continue')
+            plt.show()
 
 
     print('*'*100)
