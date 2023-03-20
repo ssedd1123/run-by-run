@@ -1,1 +1,1 @@
-[run-by-run](../../wiki/home)
+[See wiki page for instructions](../../wiki/home)
