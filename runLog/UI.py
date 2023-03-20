@@ -50,6 +50,7 @@ def back_clicked():
         BadRunButton.text = 'Bad-run'
         GoBackButton.text = 'Go Back'
         ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
+        text_area.text = RESULT[KEYS[CURRID]]
         return
     if CURRID < 0:
         return
