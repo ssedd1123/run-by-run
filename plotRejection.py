@@ -133,8 +133,8 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--input', required=True, help='ROOT files that contains all the QA TProfile')
     parser.add_argument('-br', '--badRuns', help='List of bad runs in txt format.')
     parser.add_argument('-v', '--varNames', help='Txt files with all the variable names for QA. If it is not set, it will read ALL TProfiles in the ROOT file.')
-    parser.add_argument('-e', '--element', required=True, help='Element of your reaction')
-    parser.add_argument('-s', '--sNN', required=True, help='Beam energy')
+    parser.add_argument('-e', '--element', default='??+??', help='Element of your reaction')
+    parser.add_argument('-s', '--sNN', default='??', help='Beam energy')
     parser.add_argument('--allRunID', action='store_true', help='When used, Run ID of EVERY SINGLE RUN is shown on QA plots. May not be suitable if you have tones of runs.')
     parser.add_argument('--pseudoID', action='store_true', help='Show run ID in ascending order of apparence from 0 instead of the STAR formated run ID')
     parser.add_argument('-pr', '--plotRange', type=float, default=10, help='The factor of SD of all good runs in the QA plot (default: %(default)s)')
@@ -148,6 +148,7 @@ if __name__ == '__main__':
         varNames = getNamesAllTProfile(args.input)
     else:
         varNames = getVarNames(args.varNames)
+    print('*'*100)
     print('Name of the TProfile being read:')
     print('\n'.join(varNames))
     if args.varNames is None:
