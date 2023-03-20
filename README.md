@@ -16,8 +16,12 @@ The EASY way (Linux only. For Windows and Mac, use the recommended way):
 The RECOMMENDED way (works across platforms):
 1.	Install miniconda from https://docs.conda.io/en/latest/miniconda.html
 2.	Create a dedicated environment by running the following command to create an environment called “QA”: 
+
 `conda config --add channels conda-forge`
+
 `conda create -n QA matplotlib ruptures pandas numpy scipy uproot scikit-learn`
+
+
 3.	Activate the environment by running `conda activate QA`
 4.	Install the remining packages with `pip install pyfiglet`
 The environment is called “QA” in the example, but you can call it whatever you want. You need to run step 3 EVERY TIME you restart your terminal if you use the recommended way.
