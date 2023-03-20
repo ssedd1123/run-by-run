@@ -16,13 +16,14 @@ CURRID = 0
 def good_clicked():
     global RESULT, POS, CURRID, KEYS
     if CURRID < 0:
-        button1.text = 'Good-run'
-        button2.text = 'Bad-run'
-        button3.text = 'Go Back'
+        # initialize button text after introduction is shown in text_area
+        GoodRunButton.text = 'Good-run'
+        BadRunButton.text = 'Bad-run'
+        GoBackButton.text = 'Go Back'
     if CURRID >= 0:
         POS[KEYS[CURRID]] = RESULT[KEYS[CURRID]]
     CURRID = CURRID + 1
-    button4.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
+    ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
     if CURRID < len(KEYS):
         text_area.text = RESULT[KEYS[CURRID]]
     else:
@@ -31,11 +32,10 @@ def good_clicked():
 def bad_clicked():
     global RESULT, NEG, CURRID, KEYS
     if CURRID < 0:
-        button2.text = ''
         return
     NEG[KEYS[CURRID]] = RESULT[KEYS[CURRID]]
     CURRID = CURRID + 1
-    button4.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
+    ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
     if CURRID < len(KEYS):
         text_area.text = RESULT[KEYS[CURRID]]
     else:
@@ -44,33 +44,31 @@ def bad_clicked():
 
 def back_clicked():
     global RESULT, CURRID
-    if button4.text == 'Confirm Exit':
+    if ExitButton.text == 'Confirm Exit':
         # abort exit. Go back to previous run
-        button1.text = 'Good-run'
-        button2.text = 'Bad-run'
-        button3.text = 'Go Back'
-        button4.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
+        GoodRunButton.text = 'Good-run'
+        BadRunButton.text = 'Bad-run'
+        GoBackButton.text = 'Go Back'
+        ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
         return
     if CURRID < 0:
-        button3.text = ''
         return
     if CURRID > 0:
         CURRID = CURRID - 1
-        button4.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
+        ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
         text_area.text = RESULT[KEYS[CURRID]]
 
 
 def exit_clicked():
     global RESULT, POS, NEG, CURRID, KEYS
     if CURRID < 0:
-        button4.text = ''
         return
-    if button4.text[:4] == 'Exit': # exit button is only pressed once
-        button4.text = 'Confirm Exit'
-        button1.text = ''
-        button2.text = ''
+    if ExitButton.text[:4] == 'Exit': # exit button is only pressed once
+        ExitButton.text = 'Confirm Exit'
+        GoodRunButton.text = ''
+        BadRunButton.text = ''
         text_area.text = 'If exit, all runs beyond %s will be considered good runs.' % KEYS[CURRID]
-    elif button4.text == 'Confirm Exit':
+    elif ExitButton.text == 'Confirm Exit':
         for key in KEYS[CURRID:]:
             POS[key] = RESULT[key]
             if key in NEG:
@@ -79,10 +77,10 @@ def exit_clicked():
 
 
 # All the widgets for the UI.
-button1 = Button("Next", handler=good_clicked, width=30)
-button2 = Button("", handler=bad_clicked, width=30)
-button3 = Button("", handler=back_clicked, width=30)
-button4 = Button("", handler=exit_clicked,  width=30)
+GoodRunButton = Button("Next", handler=good_clicked, width=30)
+BadRunButton  = Button("", handler=bad_clicked, width=30)
+GoBackButton  = Button("", handler=back_clicked, width=30)
+ExitButton    = Button("", handler=exit_clicked,  width=30)
 text_area = TextArea(focusable=False)
 
 # Combine all the widgets in a UI.
@@ -95,7 +93,7 @@ root_container = Box(
             VSplit(
                 [
                     Box(
-                        body=HSplit([button1, button2, button3, button4], padding=1),
+                        body=HSplit([GoodRunButton, BadRunButton, GoBackButton, ExitButton], padding=1),
                         padding=1,
                         style="class:left-pane",
                         height=Dimension(preferred=50)
@@ -107,7 +105,7 @@ root_container = Box(
     ),
 )
 
-layout = Layout(container=root_container, focused_element=button1)
+layout = Layout(container=root_container, focused_element=GoodRunButton)
 
 
 # Key bindings.
