@@ -39,7 +39,12 @@ def outlierDetector(runs, values, uncert, idSegments, useMAD, weights, **kwargs)
         outSeg = outlierSegment
 
     for lowEdge, upEdge in zip([0] + idSegments, idSegments + [runs.shape[0]]):
-        runsRejectedSeg, idRejectedSeg, meanSeg, stdRangeSeg = outSeg(runs[lowEdge:upEdge], values[lowEdge:upEdge], uncert[lowEdge:upEdge], weights=weights[lowEdge:upEdge], **kwargs)
+        if lowEdge == upEdge:
+            meanSeg = np.zeros(values.shape[1])
+            stdRangeSet = np.zeros(values.shape[1])
+            runsRejectedSeg = np.array([])
+        else:
+            runsRejectedSeg, idRejectedSeg, meanSeg, stdRangeSeg = outSeg(runs[lowEdge:upEdge], values[lowEdge:upEdge], uncert[lowEdge:upEdge], weights=weights[lowEdge:upEdge], **kwargs)
         stdRange.append(stdRangeSeg)
         mean.append(meanSeg)
         if runsRejectedSeg.shape[0] > 0:

@@ -25,11 +25,11 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
 
     for i in range(maxIter):
         if i > 0 and segmentOnce:
-            result = np.unique(np.searchsorted(runs_copy, edgeRuns)).tolist()
+            result = np.searchsorted(runs_copy, edgeRuns).tolist()
         else:
             result = segmentation(pen=pen, min_size=min_size, signal=x_copy, gamma=gamma, removeLastRun=True, useJMLR=useJMLR, **kwargs)
+            edgeRuns = runs_copy[result]
         runRj, reasonRj, mean, std = outlierDetector(runs_copy, x_copy, xerr_copy, result, stdRange=stdRange, useMAD=useMAD, weights=weights)
-        edgeRuns = runs_copy[result]
 
         if runRj.shape[0] == 0:
             break
