@@ -14,7 +14,7 @@ import os
 
 import sentiment as sen
 
-def getRunLog(runs, timeSep=0.5):
+def getShiftLog(runs, timeSep=0.5):
     result = {}
     driver = webdriver.Chrome()
     driver.set_page_load_timeout(10)
@@ -82,7 +82,7 @@ def main(input, output, timeStep, allOutput):
     else:
         print('Reading bad run list from text file %s' % input)
         runId = getRunIdFromFile(input)
-        result = getRunLog(runId, timeStep)
+        result = getShiftLog(runId, timeStep)
     print('Saving shiftLog to %s' % output)
     with open(output, 'w') as f:
         json.dump(result, f)
@@ -101,16 +101,16 @@ def printBanner():
 
 if __name__ == '__main__':
     printBanner()
-    parser = argparse.ArgumentParser(description='Robot that fetch runLog online')
-    parser.add_argument('-i', '--input', required=True, help='Text file with all the bad runs from QA script OR json file of runLog. If json file is provided, It will not load shiftLog online.')
+    parser = argparse.ArgumentParser(description='Robot that fetch shiftLog online')
+    parser.add_argument('-i', '--input', required=True, help='Text file with all the bad runs from QA script OR json file of shiftLog. If json file is provided, It will not load shiftLog online.')
     parser.add_argument('-o', '--output', required=True, help='Name of the json file to which ALL runlog are stored.')
     parser.add_argument('-br', '--badrun', required=True, help='Name of the text file of all the bad runs')
     parser.add_argument('-t', '--timeStep', type=float, default=0.5, help='Refresh interval to fetch run-log. Cannot be too short to avoid DDoS.')
     parser.add_argument('-ao', '--allOutput', help='Name of the human readible file to which all run are stored.')
     parser.add_argument('-po', '--posOutput', help='Name of the human readible file to which positive runs are stored')
     parser.add_argument('-no', '--negOutput', help='Name of the human readible file to which negative runs are stored')
-    parser.add_argument('--useAI', action='store_true', help='Use AI to help select bad runs from runLog.')
-    parser.add_argument('--justAI', action='store_true', help='Just Use AI to select bad runs from runLog. No user prompt. Will override --useAI option.')
+    parser.add_argument('--useAI', action='store_true', help='Use AI to help select bad runs from shiftLog.')
+    parser.add_argument('--justAI', action='store_true', help='Just Use AI to select bad runs from shiftLog. No user prompt. Will override --useAI option.')
     args = parser.parse_args()
 
     main(args.input, args.output, args.timeStep, args.allOutput)
