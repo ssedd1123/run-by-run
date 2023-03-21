@@ -56,6 +56,11 @@ def back_clicked():
         return
     if CURRID > 0:
         CURRID = CURRID - 1
+        # remove previous
+        if KEYS[CURRID] in POS:
+            del POS[KEYS[CURRID]]
+        if KEYS[CURRID] in NEG:
+            del NEG[KEYS[CURRID]]
         ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
         text_area.text = RESULT[KEYS[CURRID]]
 

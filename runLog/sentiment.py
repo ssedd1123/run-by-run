@@ -39,6 +39,34 @@ def manualSelect(*args, **kwargs):
     return main(*args, **kwargs)
 
 
+def main(input, output, posOutput, negOutput, useAI, justAI):
+    if justAI:
+        useAI = True
+    with open(input) as f:
+        result = json.load(f)
+    if useAI:
+        pos, neg, nEmpty = sentiment(result)
+        intro = 'AI have selected %d runLog entries out of a total of %d for further review.' % (len(pos) - nEmpty, len(result))
+        print(intro)
+    else:
+        pos = result
+        neg = {}
+        intro = 'There are %d runLog to go through' % len(result)
+    if justAI:
+        print('justAI enabled. All runs requiring further review are considered good runs.')
+    else:
+        pos, moreNeg = manualSelect(pos, intro)
+        for runID, content in moreNeg.items():
+            neg[runID] = content
+    if posOutput is not None:
+        with open(posOutput, 'w') as f:
+            f.write(printDict(pos))
+    if negOutput is not None:
+        with open(negOutput, 'w') as f:
+            f.write(printDict(neg))
+    with open(output, 'w') as f:
+        f.write('\n'.join(neg.keys()))
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sentimental analysis on runLog entries')
     parser.add_argument('-i', '--input', required=True, help='Json file generated from runLog.py, or otherwise contains all text from runLog.')
@@ -49,30 +77,4 @@ if __name__ == '__main__':
     parser.add_argument('--justAI', action='store_true', help='Just Use AI to select bad runs from runLog. No user prompt. Will override --useAI option.')
 
     args = parser.parse_args()
-    if args.justAI:
-        args.useAI = True
-
-    with open(args.input) as f:
-        result = json.load(f)
-    if args.useAI:
-        pos, neg, nEmpty = sentiment(result)
-        intro = 'AI have selected %d runLog entries out of a total of %d for further review.' % (len(pos) - nEmpty, len(result))
-        print(intro)
-    else:
-        pos = result
-        neg = {}
-        intro = 'There are %d runLog to go through' % len(result)
-    if args.justAI:
-        print('justAI enabled. All runs requiring further review are considered good runs.')
-    else:
-        pos, moreNeg = manualSelect(pos, intro)
-        for runID, content in moreNeg.items():
-            neg[runID] = content
-    if args.posOutput is not None:
-        with open(args.posOutput, 'w') as f:
-            f.write(printDict(pos))
-    if args.negOutput is not None:
-        with open(args.negOutput, 'w') as f:
-            f.write(printDict(neg))
-    with open(args.output, 'w') as f:
-        f.write('\n'.join(neg.keys()))
+    main(args.input, args.output, args.posOutput, args.negOutput, args.useAI, args.justAI)
