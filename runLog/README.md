@@ -2,11 +2,11 @@
 
 ONLY WORKS on machine with chrome installed. Does not work on RCAS unless you installed chrome manually there. I heard it's possible, but I haven't tried it.
 
-Run `pip install nltk prettytable selenium prompt_toolkit beautifulsoup4`
+Run `pip install nltk prettytable selenium prompt_toolkit beautifulsoup4 pyfiglet`
 
 ## Download shift log
 
-Run `python runLog.py -i badrun.list -o shiftLog.json -ho shiftLog.txt`
+Run `python shiftLog.py -i badrun.list -o shiftLog.json -ho shiftLog.txt`
 
 shiftLog.json is for computer to read and shiftLog.txt is for human to read.
 
