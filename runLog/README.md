@@ -6,18 +6,26 @@ Run `pip install nltk prettytable selenium prompt_toolkit beautifulsoup4 pyfigle
 
 ## Download shift log
 
-Run `python shiftLog.py -i badrun.list -o shiftLog.json -ho shiftLog.txt`
+Run `python shiftLog.py -i badrun.list -o shiftLog.json -br badrun.list`
 
 shiftLog.json is for computer to read and shiftLog.txt is for human to read.
 
-## Interactively inspect shift log
+When download is completed, an interactive interface appears where you can select if a run is good or bad. The final selected list will be saved to newBadrun.list. The corresponding shift logs will be saved to newBadrun.txt
 
-Run `python sentiment.py -i shiftLog.json -o newBadrun.list -no newBadrun.txt`
+## Want human readable shift log
 
-An interactive interface appears where you can select if a run is good or bad. The final selected list will be saved to newBadrun.list. The corresponding shift logs will be saved to newBadrun.txt
+Run `python shiftLog.py -i badrun.list -o shiftLog.json -br badrun.list -ao AllLog.txt -po PosLog.txt -no NegLog.txt`
+
+AllLog.txt contains all shift entries, PosLog.txt contains shift logs for good runs only, and NegLog.txt contains bad runs only.
+
+## Modify badrun.list
+
+There is no need to download shift logs again. You just need to give the json file as input
+
+Run `python shiftLog.py -i shiftLog.json -o shiftLog.json -br badrun.list`
 
 ### Use AI
 
-Run `python sentiment.py -i shiftLog.json -o newBadrun.list -no newBadrun.txt --useAI`
+Run `python shiftLog.py -i badrun.list -o shiftLog.json -br badrun.list --useAI`
 
 AI will consider any runs with log entry that conveys negative emotion a bad run. You just have to vet the remainning runs that doesn't convey negative tone. Empirically it saves you 40% of the work.
