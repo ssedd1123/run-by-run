@@ -11,7 +11,7 @@ from functools import partial
 import argparse
 import pyfiglet
 
-def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, maxIter=100, useJMLR=False, useMAD=False, weights=None, **kwargs):
+def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, maxIter=100, useJMLR=False, useMAD=False, weights=None, segmentOnce=False, **kwargs):
     if useJMLR:
         print('Execution with JMLR')
     else:
@@ -23,8 +23,11 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
     runsRejected = []
     reasonsRejected = []
 
-    for _ in range(maxIter):
-        result = segmentation(pen=pen, min_size=min_size, signal=x_copy, gamma=gamma, removeLastRun=True, useJMLR=useJMLR, **kwargs)
+    for i in range(maxIter):
+        if i > 0 and segmentOnce:
+            result = np.unique(np.searchsorted(runs_copy, edgeRuns)).tolist()
+        else:
+            result = segmentation(pen=pen, min_size=min_size, signal=x_copy, gamma=gamma, removeLastRun=True, useJMLR=useJMLR, **kwargs)
         runRj, reasonRj, mean, std = outlierDetector(runs_copy, x_copy, xerr_copy, result, stdRange=stdRange, useMAD=useMAD, weights=weights)
         edgeRuns = runs_copy[result]
 
@@ -101,15 +104,14 @@ if __name__ == '__main__':
     parser.add_argument('-nr', '--noReasons', action='store_true', help='Do not print rejection reasons on output')
     parser.add_argument('-pg', '--plotGood', action='store_true', help='Plot QA plots again, but only with good runs')
     parser.add_argument('-m', '--mapping', help='If x-axis of TProfile does not corresponds to STAR run ID, you can supply a file that translate bin low edge to STAR ID')
+    parser.add_argument('-so', '--segmentOnce', action='store_true', help='Only run segmentation algorithm once. You can still iterate, but the segment edges will remain unchanged in each iteration')
+
 
     args = parser.parse_args()
     if args.JMLR:
         print('Using JMLR to determine segmentation penality. Only use 1 core')
         args.cores = 1
         args.pen = [1]
-    if args.MAD:
-        print('Rejection is only done once, iterations on repeated rejections are disabled')
-        args.maxIter = 1
 
     # read data from file
     print('Reading TProfile from %s' % (args.input))
@@ -151,7 +153,7 @@ if __name__ == '__main__':
         # run different penalty setting on different cores
         for ruj, rej, me, st, ed in pool.imap_unordered(partial(segmentAndReject, runs, x, xerr, useJMLR=args.JMLR, useMAD=args.MAD,
                                                                 min_size=args.minSize, stdRange=args.rejectionRange, maxIter=args.maxIter,
-                                                                weights=weights), 
+                                                                weights=weights, segmentOnce=args.segmentOnce), 
                                                         args.pen): 
             # choose penalty that rejectes the most number of runs
             if runsRejected is None or len(ruj) > len(runsRejected):
