@@ -50,7 +50,7 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
         runsRejected = np.array(runsRejected)
         reasonsRejected = np.array([[False]*x.shape[1]])
 
-    return runsRejected, reasonsRejected, mean, std, edgeRuns
+    return runsRejected, reasonsRejected, mean, std, edgeRuns, pen, i
 
 def writeBadRuns(runsRejected, reasonsRejected, varNames, filename, noReasons):
     varNames = np.array(varNames)
@@ -148,17 +148,20 @@ if __name__ == '__main__':
 
     # begin run segmentation and rejection
     print('Executing run QA')
-    runsRejected = reasonsRejected = mean = std = edgeRuns = None
+    runsRejected = reasonsRejected = mean = std = edgeRuns = pen = it = None
     with Pool(args.cores) as pool:
         # run different penalty setting on different cores
-        for ruj, rej, me, st, ed in pool.imap_unordered(partial(segmentAndReject, runs, x, xerr, useJMLR=args.JMLR, useMAD=args.MAD,
-                                                                min_size=args.minSize, stdRange=args.rejectionRange, maxIter=args.maxIter,
-                                                                weights=weights, segmentOnce=args.segmentOnce), 
+        for ruj, rej, me, st, ed, pe, i in pool.imap_unordered(partial(segmentAndReject, runs, x, xerr, useJMLR=args.JMLR, useMAD=args.MAD,
+                                                                        min_size=args.minSize, stdRange=args.rejectionRange, maxIter=args.maxIter,
+                                                                        weights=weights, segmentOnce=args.segmentOnce), 
                                                         args.pen): 
             # choose penalty that rejectes the most number of runs
             if runsRejected is None or len(ruj) > len(runsRejected):
-                runsRejected, reasonsRejected, mean, std, edgeRuns = ruj, rej, me, st, ed
-
+                runsRejected, reasonsRejected, mean, std, edgeRuns, pen, it = ruj, rej, me, st, ed, pe, i
+    if args.JMLR:
+        print('Stops at iteration %d' % it)
+    else:
+        print('Stops at iteration %d with pen = %g' % (it, pen))
     # write result to text file
     print('Writing bad runs to %s' % args.output)
     writeBadRuns(runsRejected, reasonsRejected, varNames, args.output, args.noReasons)
