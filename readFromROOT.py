@@ -41,9 +41,10 @@ def readFromROOT(filename, varNames, runIDTranslate=None):
     if runIDTranslate is not None:
         with open(runIDTranslate) as f:
             runsTrans = np.array([int(line) for line in f])
-            runs = runsTrans[runs]
-            idSort = np.argsort(runs)
-            runs = runs[idSort]
+            if runsTrans.shape[0] != runs.shape[0]:
+                raise RuntimeError('Number of runs in mapping file disagrees with that from TProfile')
+            idSort = np.argsort(runsTrans)
+            runs = runsTrans[idSort]
             x_normal = x_normal[idSort]
             x_err_normal = x_err_normal[idSort]
             counts = counts[idSort]
