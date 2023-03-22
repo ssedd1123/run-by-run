@@ -1,11 +1,21 @@
 # Import the SentimentIntensityAnalyzer class
-from nltk.sentiment import SentimentIntensityAnalyzer
-import nltk
 import json
 import argparse
 from prettytable import PrettyTable, ALL
 
-def sentiment(result):
+def sentiment(result, modelName='NLTK', **kwargs):
+    if modelName == 'NLTK':
+        return sentimentNLTK(result, **kwargs)
+    else:
+        return sentimentTrans(result, **kwargs)
+
+def sentimentNLTK(result, **kwargs):
+    try:
+        import nltk
+    except ModuleNotFoundError as e:
+        print('nltk module not found. Please install with pip. Abort')
+        raise e
+    from nltk.sentiment import SentimentIntensityAnalyzer
     nltk.download('vader_lexicon')
     negResult = {}
     nEmpty = 0
@@ -25,6 +35,38 @@ def sentiment(result):
             posResult[runId] = content
     return posResult, negResult, nEmpty
 
+def sentimentTrans(result, threshold, **kwargs):
+    try:
+        from transformers import pipeline
+    except ModuleNotFoundError as e:
+        print('Module transformer not found. Please install both transformer and tensorflow with pip. Abort')
+        raise e
+    sentiment_pipeline = pipeline('sentiment-analysis', truncation=True)
+    negResult = {}
+    nEmpty = 0
+    posResult = {}
+
+    runIds = []
+    contents = []
+    fullContents = []
+
+    for runId, content in result.items():
+        if content is None: 
+            posResult[runId] = None
+            nEmpty = nEmpty + 1
+        else:
+            runIds.append(runId)
+            contents.append('\n'.join([line for line in content.split('\n') if 'production_' not in line]))
+            fullContents.append(content)
+    results = sentiment_pipeline(contents)
+    for runId, result, content in zip(runIds, results, fullContents):
+        if result['label'] == 'NEGATIVE' and result['score'] > threshold:
+            negResult[runId] = content
+        else:
+            posResult[runId] = content
+    return posResult, negResult, nEmpty
+
+
 def printDict(result):
     x = PrettyTable()
     x.hrules=ALL
@@ -39,20 +81,20 @@ def manualSelect(*args, **kwargs):
     return main(*args, **kwargs)
 
 
-def main(input, output, posOutput, negOutput, useAI, justAI):
-    if justAI:
-        useAI = True
+def main(input, output, posOutput, negOutput, useAI, justAI, **kwargs):
+    if justAI is not None:
+        useAI = justAI
     with open(input) as f:
         result = json.load(f)
-    if useAI:
-        pos, neg, nEmpty = sentiment(result)
+    if useAI is not None:
+        pos, neg, nEmpty = sentiment(result, useAI, **kwargs)
         intro = 'AI have selected %d runLog entries out of a total of %d for further review.' % (len(pos) - nEmpty, len(result))
         print(intro)
     else:
         pos = result
         neg = {}
         intro = 'There are %d runLog to go through' % len(result)
-    if justAI:
+    if justAI is not None:
         print('justAI enabled. All runs requiring further review are considered good runs.')
     else:
         pos, moreNeg = manualSelect(pos, intro)

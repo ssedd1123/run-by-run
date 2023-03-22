@@ -154,8 +154,10 @@ if __name__ == '__main__':
     parser.add_argument('-ao', '--allOutput', help='Name of the human readible file to which all run are stored.')
     parser.add_argument('-po', '--posOutput', help='Name of the human readible file to which positive runs are stored')
     parser.add_argument('-no', '--negOutput', help='Name of the human readible file to which negative runs are stored')
-    parser.add_argument('--useAI', action='store_true', help='Use AI to help select bad runs from shiftLog.')
-    parser.add_argument('--justAI', action='store_true', help='Just Use AI to select bad runs from shiftLog. No user prompt. Will override --useAI option.')
+    parser.add_argument('--useAI', choices=['NLTK', 'TRANS'], help='Use AI to help select bad runs from shiftLog.')
+    parser.add_argument('--justAI', choices=['NLTK', 'TRANS'], help='Just Use AI to select bad runs from shiftLog. No user prompt. Will override --useAI option.')
+    parser.add_argument('-th', '--threshold', type=float, default=0.99, help='Threshold of score higher than which a shift log entry will be consider bad by AI. Only used when TRANS model is used. (default: %(default)s)')
+
     parser.add_argument('-un', '--username', help='Username of the shift log. (Experimental. Unstable. Use at your own risk)')
     parser.add_argument('-pw', '--password', help='Password of the shift log. (Experimental. Unstable. Use at your own risk)')
     parser.add_argument('--useFirefox', action='store_true', help='Switch to Firefox if desired. MAY NOT WORK WITH MANUAL CREDENTIALS.')
@@ -167,5 +169,5 @@ if __name__ == '__main__':
             username=args.username, password=args.password, 
             firefox=args.useFirefox, timeout=args.timeout)
     print('*' * 100)
-    sen.main(args.output, args.badrun, args.posOutput, args.negOutput, args.useAI, args.justAI)
+    sen.main(args.output, args.badrun, args.posOutput, args.negOutput, args.useAI, args.justAI, threshold=args.threshold)
     print('*' * 100)
