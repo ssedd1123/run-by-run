@@ -30,7 +30,8 @@ def autoLogin(driver, username, password, timeout):
     # login with shiftLog2019 home page
     # once you have the login session, you are all set
     # if this url fails, replace with any other shift log page
-    url = 'https://online.star.bnl.gov/apps/shiftLog2019/logForFullTextSearch.jsp?text=20000000'
+    # url = 'https://online.star.bnl.gov/apps/shiftLog2019/logForFullTextSearch.jsp?text=20000000'
+    url = 'https://online.star.bnl.gov/apps/shiftLog2021/logForFullTextSearch.jsp?text=22031042'
 
     driver.get(url)
     keyboard.write(username)
