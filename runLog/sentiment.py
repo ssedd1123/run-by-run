@@ -93,7 +93,7 @@ def main(input, output, posOutput, negOutput, useAI, justAI, **kwargs):
     else:
         pos = result
         neg = {}
-        intro = 'There are %d runLog to go through' % len(result)
+        intro = 'There are %d non empty shift entries to go through' % sum(x is not None for _, x in result.items())
     if justAI is not None:
         print('justAI enabled. All runs requiring further review are considered good runs.')
     else:
@@ -108,6 +108,7 @@ def main(input, output, posOutput, negOutput, useAI, justAI, **kwargs):
             f.write(printDict(neg))
     with open(output, 'w') as f:
         f.write('\n'.join(neg.keys()))
+    return pos, neg
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sentimental analysis on runLog entries')

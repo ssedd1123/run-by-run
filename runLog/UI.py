@@ -5,6 +5,8 @@ from prompt_toolkit.key_binding.bindings.focus import focus_next, focus_previous
 from prompt_toolkit.layout import HSplit, Layout, VSplit, Dimension
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Box, Button, Frame, Label, TextArea
+from prompt_toolkit.key_binding.bindings.page_navigation import scroll_one_line_up, scroll_one_line_down
+
 
 RESULT = None
 KEYS = None
@@ -87,7 +89,7 @@ GoodRunButton = Button("Next", handler=good_clicked, width=30)
 BadRunButton  = Button("", handler=bad_clicked, width=30)
 GoBackButton  = Button("", handler=back_clicked, width=30)
 ExitButton    = Button("", handler=exit_clicked,  width=30)
-text_area = TextArea(focusable=False)
+text_area = TextArea(focusable=False, scrollbar=True)
 
 # Combine all the widgets in a UI.
 # The `Box` object ensures that padding will be inserted around the containing
@@ -119,6 +121,20 @@ kb = KeyBindings()
 kb.add("down")(focus_next)
 kb.add("up")(focus_previous)
 
+@kb.add("pageup")
+def _(event):
+    w = event.app.layout.current_window
+    event.app.layout.focus(text_area.window)
+    scroll_one_line_up(event)
+    event.app.layout.focus(w)
+
+@kb.add("pagedown")
+def _(event):
+    w = event.app.layout.current_window
+    event.app.layout.focus(text_area.window)
+    scroll_one_line_down(event)
+    event.app.layout.focus(w)
+
 
 # Styling.
 style = Style(
@@ -142,10 +158,19 @@ def main(result, intro=''):
     # remove empty entry
     KEYS = []
     RESULT = {}
+    POS = {}
+    NEG = {}
+    GoodRunButton.text = "Next"
+    BadRunButton.text = ""
+    GoBackButton.text = ""
+    ExitButton.text = "" 
+
     for key, content in result.items():
-        if content:
+        if content is not None:
             KEYS.append(key)
-            RESULT[key] = content
+        else:
+            POS[key] = content
+        RESULT[key] = content
     CURRID = -1
     text_area.text = intro
     application.run()

@@ -13,48 +13,12 @@ import pyfiglet
 import os
 
 import sentiment as sen
-
-def autoLogin(driver, username, password, timeout):
-    print('*' * 100)
-    print('Using pre-entered credentials')
-    print('WARNING: Auto Login is Extremely unstable!')
-    print('Prepare for failure and try again')
-    try:
-        import keyboard
-    except ModuleNotFoundError as e:
-        print('*' * 100)
-        print('Keyboard module not found. Please install with \'pip install keyboard\'')
-        print('Abort. Please enter credentials manually.')
-        print('*' * 100)
-        return
-    # login with shiftLog2019 home page
-    # once you have the login session, you are all set
-    # if this url fails, replace with any other shift log page
-    # url = 'https://online.star.bnl.gov/apps/shiftLog2019/logForFullTextSearch.jsp?text=20000000'
-    url = 'https://online.star.bnl.gov/apps/shiftLog2021/logForFullTextSearch.jsp?text=22031042'
-
-    driver.get(url)
-    keyboard.write(username)
-    keyboard.press_and_release('tab')
-    keyboard.write(password)
-    keyboard.press_and_release("tab")
-    keyboard.press_and_release("enter")
-    print('*' * 100)
-    WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('ShiftLog'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
-    if 'Unauthorize' in driver.title.lower():
-        raise RuntimeError('Incorrect password or username')
-
+import shiftLogByShift as sl
+import browser 
 
 def getShiftLog(runs, timeSep=0.5, username=None, password=None, firefox=False, timeout=60):
     result = {}
-    if firefox:
-        driver = webdriver.Firefox()
-    else:
-        driver = webdriver.Chrome()
-    driver.set_page_load_timeout(timeout)
-    if username is not None and password is not None: 
-        # supposedly you only need to enter credientials once at the beginning
-        autoLogin(driver, username, password, timeout)
+    driver = browser.getDriver(firefox, timeout, username, password)
 
     for i, runId in enumerate(runs):
         result[runId] = None
@@ -82,30 +46,26 @@ def getShiftLog(runs, timeSep=0.5, username=None, password=None, firefox=False, 
             result[runId] = 'Cannot load shift log'
             continue
         tables = soup.findAll('table')
-        try:
-            for table  in tables:
-                rows = table.find_all('tr')
-                for row in rows:
-                    # Find all cells in the row
-                    #print(row.find_all('td'))
-                    cells = row.find_all("td")#[-1]
-                    for i, cell in enumerate(cells):
-                        # Print the cell text
-                        word = cell.get_text(strip=True, separator="\n")
+        
+        for table in tables:
+            rows = table.find_all('tr')
+            for row in rows:
+                # Find all cells in the row
+                #print(row.find_all('td'))
+                cells = row.find_all("td")#[-1]
+                #for i, cell in enumerate(cells):
+                    # Print the cell text
+                if len(cells) == 2:
+                    if 'QA' not in cells[0].get_text():
+                        word = cells[1].get_text(strip=True, separator="\n").replace('\t', ' ')
                         word = re.sub(r"\s*\n\s*", "\n", word)
-                        if i == 0 and 'General' not in word:
-                            break
-                        if i == 1:
-                            if result[runId] is None:
-                                result[runId] = word
-                            else:
-                                result[runId] = result[runId] + '\n' + word
-
-        except Exception:
-            pass
+                        if result[runId] is None:
+                            result[runId] = word
+                        else:
+                            result[runId] = result[runId] + '\n' + word
         time.sleep(timeSep)
-    driver.quit()
-    return result
+    # driver.quit()
+    return result, driver
 
 def getRunIdFromFile(filename):
     with open(filename) as f:
@@ -120,6 +80,7 @@ def getRunIdFromFile(filename):
 
 def main(input, output, timeStep, allOutput, **kwargs):
     _, ext = os.path.splitext(input)
+    driver = None
     if ext == '.json':
         print('Reading json file %s' % input)
         with open(args.input) as f:
@@ -127,7 +88,7 @@ def main(input, output, timeStep, allOutput, **kwargs):
     else:
         print('Reading bad run list from text file %s' % input)
         runId = getRunIdFromFile(input)
-        result = getShiftLog(runId, timeStep, **kwargs)
+        result, driver = getShiftLog(runId, timeStep, **kwargs)
     print('Saving shiftLog to %s' % output)
     with open(output, 'w') as f:
         json.dump(result, f)
@@ -135,6 +96,7 @@ def main(input, output, timeStep, allOutput, **kwargs):
         print('Saving human-readable shiftLog to %s' % allOutput)
         with open(allOutput, 'w') as f:
             f.write(printDict(result))
+    return driver
 
 def printBanner():
     print(u'\u2500' * 100)
@@ -162,12 +124,19 @@ if __name__ == '__main__':
     parser.add_argument('-pw', '--password', help='Password of the shift log. (Experimental. Unstable. Use at your own risk)')
     parser.add_argument('--useFirefox', action='store_true', help='Switch to Firefox if desired. MAY NOT WORK WITH MANUAL CREDENTIALS.')
     parser.add_argument('-to', '--timeout', default=60, type=float, help='Longest time to wait before connection timeout (default: %(default)s)')
+    parser.add_argument('-tr', '--traceHistory', help='Name of the human readible file to which 7 hours of shift log before the end of each selected run. The selected runs are good run from first pass to make sure the good runs are really good.')
 
 
     args = parser.parse_args()
-    main(args.input, args.output, args.timeStep, args.allOutput, 
-            username=args.username, password=args.password, 
-            firefox=args.useFirefox, timeout=args.timeout)
+    driver = main(args.input, args.output, args.timeStep, args.allOutput, 
+                  username=args.username, password=args.password, 
+                  firefox=args.useFirefox, timeout=args.timeout)
     print('*' * 100)
-    sen.main(args.output, args.badrun, args.posOutput, args.negOutput, args.useAI, args.justAI, threshold=args.threshold)
+    pos, neg = sen.main(args.output, args.badrun, args.posOutput, args.negOutput, args.useAI, args.justAI, threshold=args.threshold)
     print('*' * 100)
+    if args.traceHistory is not None:
+        print('Searching histories of the good runs.')
+        pos, neg = sl.main(list(pos.keys()), args.badrun, driver, timeSep=args.timeStep, 
+                           firefox=args.useFirefox, username=args.username, password=args.password)
+        with open(args.traceHistory, 'w') as f:
+            f.write(sen.printDict(neg))
