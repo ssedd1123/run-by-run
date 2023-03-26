@@ -18,7 +18,7 @@ import browser
 #from shiftLog import autoLogin
 
 def findRunTime(runID, driver, timeout):
-    year = int(str(runID)[:2]) - 1
+    year = int(runID[:2]) - 1
     url = 'https://online.star.bnl.gov/RunLogRun%d/index.php?r=%s' % (year, runID)
     try:
         driver.get(url)
@@ -29,8 +29,8 @@ def findRunTime(runID, driver, timeout):
  
     soup = BeautifulSoup(driver.page_source, "html.parser")
     if 'error' in soup.title.get_text().lower() or 'unauthorize' in soup.title.get_text().lower():
-        print('Cannot load shift log for run %d' % runId)
-        return None, None
+        print('Cannot load shift log for run %s' % runId)
+        return None, None, True
     try:
         # see if it's mark as junk by shift Leader
         # should NOT have been produced in the first place
@@ -50,7 +50,7 @@ def findRunTime(runID, driver, timeout):
         return startDateTime.astimezone(eastern), endDateTime.astimezone(eastern), junk
     except Exception as e:
         traceback.print_exc()
-        print('Cannot get time of run %d' % runID)
+        print('Cannot get time of run %s' % runID)
         return None, None, True
 
 def getAllEntriesOnDate(driver, date, timeout):
@@ -111,7 +111,7 @@ def getEntriesInRange(driver, start, end, timeout, timeSep, dp):
         time.sleep(timeSep)
     return results
 
-def printDict(result, runStart, runEnd, runID):
+def printDict(result, runStart=None, runEnd=None, runID='0'):
     x = PrettyTable()
     x.hrules=ALL
     x.field_names = ['Time', 'Content']
@@ -119,49 +119,15 @@ def printDict(result, runStart, runEnd, runID):
     # reverse chronological order
     insertedStart = False
     insertedEnd = False
-    runID = str(runID)
     for time, content in sorted(list(result.items()), key=lambda x:x[0], reverse=True):
-        if not insertedEnd and time < runEnd:
+        if runEnd is not None and not insertedEnd and time < runEnd:
             insertedEnd = True
             x.add_row(['8'*10, 'RUN' + runID + 'END' + '8'*(70 - 6 - len(runID) if 70 - 6 - len(runID) > 0 else 1)])
-        if not insertedStart and time < runStart:
+        if runStart is not None and not insertedStart and time < runStart:
             insertedStart = True
             x.add_row(['8'*10, 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
         if runID in content:
-            content = content.replace(runID, '>'*10 + runID + '<')
+            content = content.replace(runID, '>'*10 + runID + '<'*10)
         x.add_row([time.strftime('%B %d, %Y\n%H:%M:%S'), content])
     x.align['Content'] = 'l'
     return x.get_string()
-
-def main(runList, badruns=None, driver=None, hoursBefore=7, timeout=30, timeSep=0.5, firefox=False, username=None, password=None):
-    if driver is None:
-        driver = browser.getDriver(firefox, timeout, username, password)
-    else:
-        try: 
-            driver.window_handles
-        except:
-            print('Did you closed the browser? No worries I will span a new one, but you may have to reenter credientals')
-            driver = browser.getDriver(firefox, timeout, username, password)
-
-    results = {}
-    dp = {}
-    for run in runList:
-        runStart, runEnd, junk = findRunTime(run, driver, timeout)
-        if junk:
-            message = 'Run %s is marked as junk by ShiftLeader' % run
-            print(message)
-        else:
-            result = getEntriesInRange(driver, runStart - timedelta(hours=hoursBefore), 
-                                       runEnd + timedelta(minutes=30), timeout, timeSep, dp)
-            message = printDict(result, runStart, runEnd, run)
-        results[run] = message
-    pos, neg = UI.main(results, 'All shift entries %g hours prior to the end of the %d selected run are shown. Check if there is anything wrong with it.' % (hoursBefore, len(runList)))
-    if badruns:
-        with open(badruns, 'w') as f:
-            f.write('\n'.join(neg.keys()))
-    return pos, neg
-
-if __name__ == '__main__':
-    runList = [20057007, 20058001, 20060012] 
-    posResult, negResult = main(runList) 
-    #print(sen.printDict(posResult))

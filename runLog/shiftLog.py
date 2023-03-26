@@ -7,65 +7,15 @@ from selenium.common.exceptions import TimeoutException
 from bs4 import BeautifulSoup
 import re
 import json
-from sentiment import sentiment, printDict
+from sentiment import sentiment
 import argparse
 import pyfiglet
 import os
+from datetime import datetime, timedelta
+from prettytable import PrettyTable, ALL
 
-import sentiment as sen
 import shiftLogByShift as sl
 import browser 
-
-def getShiftLog(runs, timeSep=0.5, username=None, password=None, firefox=False, timeout=60):
-    result = {}
-    driver = browser.getDriver(firefox, timeout, username, password)
-
-    for i, runId in enumerate(runs):
-        result[runId] = None
-        year = int(str(runId)[:2]) - 1
-        url = "https://online.star.bnl.gov/apps/shiftLog20%d/logForFullTextSearch.jsp?text=%d" % (year, runId)
-        print('Loading data for run %d (%d/%d)' % (runId, i + 1, len(runs)))
-
-        try: 
-            driver.window_handles
-        except:
-            raise RuntimeError('Cannot call window handles. Browser may have been closed manually. Abort')
-            raise
-        
-        try:
-            driver.get(url)
-            WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('ShiftLog'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
-        except:
-            print('Connection time out for run %d' % runId)
-            result[runId] = 'Connection to shift log time out'
-            continue
-        
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-        if 'error' in soup.title.get_text().lower() or 'unauthorize' in soup.title.get_text().lower():
-            print('Cannot load shift log for run %d' % runId)
-            result[runId] = 'Cannot load shift log'
-            continue
-        tables = soup.findAll('table')
-        
-        for table in tables:
-            rows = table.find_all('tr')
-            for row in rows:
-                # Find all cells in the row
-                #print(row.find_all('td'))
-                cells = row.find_all("td")#[-1]
-                #for i, cell in enumerate(cells):
-                    # Print the cell text
-                if len(cells) == 2:
-                    if 'QA' not in cells[0].get_text():
-                        word = cells[1].get_text(strip=True, separator="\n").replace('\t', ' ')
-                        word = re.sub(r"\s*\n\s*", "\n", word)
-                        if result[runId] is None:
-                            result[runId] = word
-                        else:
-                            result[runId] = result[runId] + '\n' + word
-        time.sleep(timeSep)
-    # driver.quit()
-    return result, driver
 
 def getRunIdFromFile(filename):
     with open(filename) as f:
@@ -78,7 +28,53 @@ def getRunIdFromFile(filename):
             pass
     return runId
 
-def main(input, output, timeStep, allOutput, **kwargs):
+def selectRun(results, runID):
+    relevant = {}
+    for dt, content in results.items():
+        if runID in content:
+            relevant[dt] = content
+    return relevant
+
+def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=False, timeout=60, **kwargs):
+    hoursBefore = 5
+    results = {}
+    dp = {}
+    driver = browser.getDriver(firefox, timeout, username, password)
+
+    for i, run in enumerate(runs):
+        run = str(run)
+        print('Loading history for run %s (%d/%d)' % (run, i+1, len(runs)))
+        results[run] = ['', '']
+        try: 
+            driver.window_handles
+        except:
+            raise RuntimeError('Cannot call window handles. Browser may have been closed manually. Abort')
+            raise
+ 
+        runStart, runEnd, junk = sl.findRunTime(run, driver, timeout)
+        if junk:
+            results[run] = [('Run %s is marked as junk by ShiftLeader' % run)] * 2
+        else:
+            result = sl.getEntriesInRange(driver, runStart - timedelta(hours=hoursBefore), 
+                                       runEnd + timedelta(minutes=30), timeout, timeStep, dp)
+            messageDetail = sl.printDict(result, runStart, runEnd, run)
+            selectedMessage = selectRun(result, run)
+            messageBrief = '\n'.join([content for _, content in selectedMessage.items()])
+            results[run] = [messageBrief, messageDetail]
+    return results, driver
+
+def printBriefDict(result):
+    x = PrettyTable()
+    x.hrules=ALL
+    x.field_names = ['RunID', 'Content']
+    for runId, content in result.items():
+        x.add_row([runId, content[0]])
+    x.align['Content'] = 'l'
+    return x.get_string()
+
+
+
+def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, **kwargs):
     _, ext = os.path.splitext(input)
     driver = None
     if ext == '.json':
@@ -88,15 +84,35 @@ def main(input, output, timeStep, allOutput, **kwargs):
     else:
         print('Reading bad run list from text file %s' % input)
         runId = getRunIdFromFile(input)
-        result, driver = getShiftLog(runId, timeStep, **kwargs)
+        result, driver = getShiftLogDetailed(runId, timeStep, **kwargs)
+        driver.quit()
     print('Saving shiftLog to %s' % output)
     with open(output, 'w') as f:
         json.dump(result, f)
     if allOutput is not None:
         print('Saving human-readable shiftLog to %s' % allOutput)
         with open(allOutput, 'w') as f:
-            f.write(printDict(result))
-    return driver
+            f.write(printBriefDict(result))
+    if useAI:
+        pos, neg = sentiment(result, useAI, threshold=threshold)
+        intro = 'AI have selected %d runLog entries out of a total of %d for further review.' % (len(pos), len(result))
+    else:
+        pos = result
+        neg = {}
+        intro = 'There are %d runs to go through' % len(result)
+    import UI
+    pos, moreNeg = UI.main(pos, intro)
+    for runID, content in moreNeg.items():
+        neg[runID] = content
+    if posOutput is not None:
+        with open(posOutput, 'w') as f:
+            f.write(printBriefDict(pos))
+    if negOutput is not None:
+        with open(negOutput, 'w') as f:
+            f.write(printBriefDict(neg))
+    with open(badrun, 'w') as f:
+        f.write('\n'.join(neg.keys()))
+
 
 def printBanner():
     print(u'\u2500' * 100)
@@ -124,20 +140,11 @@ if __name__ == '__main__':
     parser.add_argument('-pw', '--password', help='Password of the shift log. (Experimental. Unstable. Use at your own risk)')
     parser.add_argument('--useFirefox', action='store_true', help='Switch to Firefox if desired. MAY NOT WORK WITH MANUAL CREDENTIALS.')
     parser.add_argument('-to', '--timeout', default=60, type=float, help='Longest time to wait before connection timeout (default: %(default)s)')
-    parser.add_argument('-tr', '--traceHistory', help='Name of the human readible file to which 7 hours of shift log before the end of each selected run. The selected runs are good run from first pass to make sure the good runs are really good.')
 
 
     args = parser.parse_args()
-    driver = main(args.input, args.output, args.timeStep, args.allOutput, 
-                  username=args.username, password=args.password, 
-                  firefox=args.useFirefox, timeout=args.timeout)
+    main(args.input, args.output, args.timeStep, args.allOutput, 
+         args.badrun, args.posOutput, args.negOutput, args.useAI, 
+         threshold=args.threshold, username=args.username, password=args.password, 
+         firefox=args.useFirefox, timeout=args.timeout)
     print('*' * 100)
-    pos, neg = sen.main(args.output, args.badrun, args.posOutput, args.negOutput, args.useAI, args.justAI, threshold=args.threshold)
-    print('*' * 100)
-    if args.traceHistory is not None:
-        print('Searching histories of the good runs.')
-        pos, neg = sl.main(list(pos.keys()), args.badrun, driver, timeSep=args.timeStep, 
-                           firefox=args.useFirefox, username=args.username, password=args.password)
-        with open(args.traceHistory, 'w') as f:
-            f.write(sen.printDict(neg))
-    driver.quit()

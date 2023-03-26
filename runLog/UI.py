@@ -6,17 +6,21 @@ from prompt_toolkit.layout import HSplit, Layout, VSplit, Dimension
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Box, Button, Frame, Label, TextArea
 from prompt_toolkit.key_binding.bindings.page_navigation import scroll_one_line_up, scroll_one_line_down
+from enum import Enum
 
+TEXT = Enum('TEXT', 'BRIEF DETAIL', start=0)
 
 RESULT = None
 KEYS = None
 POS = {}
 NEG = {}
 CURRID = 0
+TEXTTYPE = TEXT.BRIEF
+MULTABLE = False # disable left/right arrow if not multable
 
 # Event handlers for all the buttons.
 def good_clicked():
-    global RESULT, POS, CURRID, KEYS
+    global RESULT, POS, CURRID, KEYS, MULTABLE
     if CURRID < 0:
         # initialize button text after introduction is shown in text_area
         GoodRunButton.text = 'Good-run'
@@ -27,32 +31,35 @@ def good_clicked():
     CURRID = CURRID + 1
     ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
     if CURRID < len(KEYS):
-        text_area.text = RESULT[KEYS[CURRID]]
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+        MULTABLE = True
     else:
         get_app().exit()
 
 def bad_clicked():
-    global RESULT, NEG, CURRID, KEYS
+    global RESULT, NEG, CURRID, KEYS, MULTABLE
     if CURRID < 0:
         return
     NEG[KEYS[CURRID]] = RESULT[KEYS[CURRID]]
     CURRID = CURRID + 1
     ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
     if CURRID < len(KEYS):
-        text_area.text = RESULT[KEYS[CURRID]]
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+        MULTABLE = True
     else:
         get_app().exit()
 
 
 def back_clicked():
-    global RESULT, CURRID
+    global RESULT, CURRID, MULTABLE
     if ExitButton.text == 'Confirm Exit':
         # abort exit. Go back to previous run
         GoodRunButton.text = 'Good-run'
         BadRunButton.text = 'Bad-run'
         GoBackButton.text = 'Go Back'
         ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
-        text_area.text = RESULT[KEYS[CURRID]]
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+        MULTABLE = True
         return
     if CURRID < 0:
         return
@@ -64,11 +71,11 @@ def back_clicked():
         if KEYS[CURRID] in NEG:
             del NEG[KEYS[CURRID]]
         ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
-        text_area.text = RESULT[KEYS[CURRID]]
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
 
 
 def exit_clicked():
-    global RESULT, POS, NEG, CURRID, KEYS
+    global RESULT, POS, NEG, CURRID, KEYS, MULTABLE
     if CURRID < 0:
         return
     if ExitButton.text[:4] == 'Exit': # exit button is only pressed once
@@ -76,6 +83,7 @@ def exit_clicked():
         GoodRunButton.text = ''
         BadRunButton.text = ''
         text_area.text = 'If exit, all runs beyond %s will be considered good runs.' % KEYS[CURRID]
+        MULTABLE = False
     elif ExitButton.text == 'Confirm Exit':
         for key in KEYS[CURRID:]:
             POS[key] = RESULT[key]
@@ -97,7 +105,7 @@ text_area = TextArea(focusable=False, scrollbar=True)
 root_container = Box(
     HSplit(
         [
-            Label(text="Is this runLog entry problematic?"),
+            Label(text="Control with up, down, left, right, Pg Up, Pg Down and Enter keys"),
             VSplit(
                 [
                     Box(
@@ -135,6 +143,21 @@ def _(event):
     scroll_one_line_down(event)
     event.app.layout.focus(w)
 
+@kb.add("left")
+def _(event):
+    global TEXTTYPE
+    if MULTABLE and TEXTTYPE == TEXT.DETAIL:
+        TEXTTYPE = TEXT.BRIEF
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+
+@kb.add("right")
+def _(event):
+    global TEXTTYPE
+    if MULTABLE and TEXTTYPE == TEXT.BRIEF:
+        TEXTTYPE = TEXT.DETAIL
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+
+
 
 # Styling.
 style = Style(
@@ -154,7 +177,7 @@ application = Application(layout=layout, key_bindings=kb, style=style, full_scre
 
 
 def main(result, intro=''):
-    global RESULT, POS, NEG, CURRID, KEYS
+    global RESULT, POS, NEG, CURRID, KEYS, TEXTTYPE
     # remove empty entry
     KEYS = []
     RESULT = {}
@@ -164,12 +187,10 @@ def main(result, intro=''):
     BadRunButton.text = ""
     GoBackButton.text = ""
     ExitButton.text = "" 
+    TEXTTYPE = TEXT.BRIEF
 
     for key, content in result.items():
-        if content is not None:
-            KEYS.append(key)
-        else:
-            POS[key] = content
+        KEYS.append(key)
         RESULT[key] = content
     CURRID = -1
     text_area.text = intro
@@ -178,6 +199,6 @@ def main(result, intro=''):
 
 
 if __name__ == "__main__":
-    results = {1: 'Problematic1 '*100, 2: 'Problematic2', 3: 'Non-problematic3'}
+    results = {1: ['brief1', 'Problematic1 '*100], 2: ['brief 2', 'Problematic2'], 3: ['brief 3', 'Non-problematic3']}
     pos, neg = main(results)
     print(pos, neg)
