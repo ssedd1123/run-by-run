@@ -128,7 +128,7 @@ def printDict(result, runStart, runEnd, runID):
             insertedStart = True
             x.add_row(['8'*10, 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
         if runID in content:
-            content = content.replace(runID, '>'*10 + runID + '<'*10)
+            content = content.replace(runID, '>'*10 + runID + '<')
         x.add_row([time.strftime('%B %d, %Y\n%H:%M:%S'), content])
     x.align['Content'] = 'l'
     return x.get_string()
@@ -152,10 +152,9 @@ def main(runList, badruns=None, driver=None, hoursBefore=7, timeout=30, timeSep=
             print(message)
         else:
             result = getEntriesInRange(driver, runStart - timedelta(hours=hoursBefore), 
-                                       runEnd + timedelta(minutes=60), timeout, timeSep, dp)
+                                       runEnd + timedelta(minutes=30), timeout, timeSep, dp)
             message = printDict(result, runStart, runEnd, run)
         results[run] = message
-    driver.quit()
     pos, neg = UI.main(results, 'All shift entries %g hours prior to the end of the %d selected run are shown. Check if there is anything wrong with it.' % (hoursBefore, len(runList)))
     if badruns:
         with open(badruns, 'w') as f:

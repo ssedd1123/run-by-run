@@ -140,3 +140,4 @@ if __name__ == '__main__':
                            firefox=args.useFirefox, username=args.username, password=args.password)
         with open(args.traceHistory, 'w') as f:
             f.write(sen.printDict(neg))
+    driver.quit()
