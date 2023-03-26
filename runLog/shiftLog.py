@@ -59,7 +59,7 @@ def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=Fa
                                        runEnd + timedelta(minutes=30), timeout, timeStep, dp)
             messageDetail = sl.printDict(result, runStart, runEnd, run)
             selectedMessage = selectRun(result, run)
-            messageBrief = '\n\n'.join([content for _, content in selectedMessage.items()])
+            messageBrief = ('\n' + '-' * 50 + '\n' + '-'*50 + '\n').join([content for _, content in selectedMessage.items()])
             results[run] = [messageBrief, messageDetail]
     return results, driver
 
