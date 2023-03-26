@@ -1,27 +1,23 @@
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
-import os
 import time
+from pynput.keyboard import Key, Controller
 
 def autoLogin(driver, username, password, timeout):
+    """
+    Using pynput to login is an unsafe and error-prone way to login
+    but I can't get authenticated with the other ways I've tried
+    Will change when alternatives are found
+    """
     print('*' * 100)
     print('Using pre-entered credentials')
-    print('WARNING: Auto Login is Extremely unstable!')
-    print('Prepare for failure and try again')
-    try:
-        from pynput.keyboard import Key, Controller
-    except ModuleNotFoundError as e:
-        print('*' * 100)
-        print('pynput module not found. Please install with \'pip install pynput\'')
-        print('Abort. Please enter credentials manually.')
-        print('*' * 100)
-        return
+    print('IMPORTANT: KEEP THE BROWSER ON TOP DURING THE LOGIN PROCESS.')
+    print('You can focus on other windows AFTER a successful login')
     keyboard = Controller()
     # login with shiftLog2019 home page
     # once you have the login session, you are all set
     # if this url fails, replace with any other shift log page
-    # url = 'https://online.star.bnl.gov/apps/shiftLog2019/logForFullTextSearch.jsp?text=20000000'
     url = 'https://online.star.bnl.gov/apps/shiftLog2021/logForFullTextSearch.jsp?text=22031042'
 
     driver.get(url)
@@ -40,7 +36,7 @@ def getDriver(firefox, timeout, username=None, password=None):
     if firefox:
         driver = webdriver.Firefox()
     else:
-        driver = webdriver.Chrome(service_log_path=os.devnull)
+        driver = webdriver.Chrome()
     driver.set_page_load_timeout(timeout)
     if username is not None and password is not None: 
         # supposedly you only need to enter credientials once at the beginning

@@ -13,9 +13,15 @@ import pyfiglet
 import os
 from datetime import datetime, timedelta
 from prettytable import PrettyTable, ALL
+import getpass
 
 import shiftLogByShift as sl
 import browser 
+
+def login():
+    username = input('Enter shift log username: ')
+    password = getpass.getpass('Enter shift log password: ')
+    return username, password
 
 def getRunIdFromFile(filename):
     with open(filename) as f:
@@ -74,7 +80,7 @@ def printBriefDict(result):
 
 
 
-def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, **kwargs):
+def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, **kwargs):
     _, ext = os.path.splitext(input)
     driver = None
     if ext == '.json':
@@ -84,7 +90,9 @@ def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI
     else:
         print('Reading bad run list from text file %s' % input)
         runId = getRunIdFromFile(input)
-        result, driver = getShiftLogDetailed(runId, timeStep, **kwargs)
+        if username is None or password is None:
+            username, password = login()
+        result, driver = getShiftLogDetailed(runId, timeStep, username=username, password=password, **kwargs)
         driver.quit()
     print('Saving shiftLog to %s' % output)
     with open(output, 'w') as f:

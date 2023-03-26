@@ -21,6 +21,8 @@ MULTABLE = False # disable left/right arrow if not multable
 # Event handlers for all the buttons.
 def good_clicked():
     global RESULT, POS, CURRID, KEYS, MULTABLE
+    if GoodRunButton.text == '':
+        return #button disabled if text on button is removed
     if CURRID < 0:
         # initialize button text after introduction is shown in text_area
         GoodRunButton.text = 'Good-run'
@@ -38,6 +40,8 @@ def good_clicked():
 
 def bad_clicked():
     global RESULT, NEG, CURRID, KEYS, MULTABLE
+    if BadRunButton.text == '':
+        return 
     if CURRID < 0:
         return
     NEG[KEYS[CURRID]] = RESULT[KEYS[CURRID]]
@@ -105,7 +109,7 @@ text_area = TextArea(focusable=False, scrollbar=True)
 root_container = Box(
     HSplit(
         [
-            Label(text="Control with up, down, left, right, Pg Up, Pg Down and Enter keys"),
+            Label(text="Control with (up, down, left, right/WASD), Pg Up, Pg Down and Enter keys"),
             VSplit(
                 [
                     Box(
@@ -114,10 +118,10 @@ root_container = Box(
                         style="class:left-pane",
                         height=Dimension(preferred=50)
                     ),
-                    Box(body=Frame(text_area), padding=1, style="class:right-pane"),
+                    Box(body=Frame(text_area), padding=1, style="class:right-pane", height=Dimension(max=100)),
                 ]
             ),
-        ], width=Dimension(preferred=100)
+        ], width=Dimension(preferred=110)
     ),
 )
 
@@ -125,9 +129,30 @@ layout = Layout(container=root_container, focused_element=GoodRunButton)
 
 
 # Key bindings.
+# also bind wasd for laptop users with not arrow keys
 kb = KeyBindings()
 kb.add("down")(focus_next)
+kb.add("s")(focus_next)
 kb.add("up")(focus_previous)
+kb.add("w")(focus_previous)
+
+@kb.add("left")
+@kb.add("a")
+def _(event):
+    global TEXTTYPE
+    if MULTABLE and TEXTTYPE == TEXT.DETAIL:
+        TEXTTYPE = TEXT.BRIEF
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+
+@kb.add("right")
+@kb.add("d")
+def _(event):
+    global TEXTTYPE
+    if MULTABLE and TEXTTYPE == TEXT.BRIEF:
+        TEXTTYPE = TEXT.DETAIL
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+
+
 
 @kb.add("pageup")
 def _(event):
@@ -142,20 +167,6 @@ def _(event):
     event.app.layout.focus(text_area.window)
     scroll_one_line_down(event)
     event.app.layout.focus(w)
-
-@kb.add("left")
-def _(event):
-    global TEXTTYPE
-    if MULTABLE and TEXTTYPE == TEXT.DETAIL:
-        TEXTTYPE = TEXT.BRIEF
-        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
-
-@kb.add("right")
-def _(event):
-    global TEXTTYPE
-    if MULTABLE and TEXTTYPE == TEXT.BRIEF:
-        TEXTTYPE = TEXT.DETAIL
-        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
 
 
 

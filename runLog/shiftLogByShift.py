@@ -24,12 +24,12 @@ def findRunTime(runID, driver, timeout):
         driver.get(url)
         WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('STAR RunLog Browser'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
     except:
-        print('Connection time out for run %d' % runId)
+        print('Connection time out for run %s' % runID)
         return None, None, True
  
     soup = BeautifulSoup(driver.page_source, "html.parser")
     if 'error' in soup.title.get_text().lower() or 'unauthorize' in soup.title.get_text().lower():
-        print('Cannot load shift log for run %s' % runId)
+        print('Cannot load shift log for run %s' % runID)
         return None, None, True
     try:
         # see if it's mark as junk by shift Leader
