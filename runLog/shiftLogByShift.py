@@ -92,13 +92,18 @@ def getAllEntriesOnDate(driver, date, timeout):
 
     return entries
  
-def getEntriesInRange(driver, start, end, timeout, timeSep):
+def getEntriesInRange(driver, start, end, timeout, timeSep, dp):
     beginTime = start
     currTime = beginTime.replace(hour=0, minute=0, second=0)
     oneDay = timedelta(days=1)
     results = {}
     while currTime <= end:
-        res = getAllEntriesOnDate(driver, currTime, timeout)
+        # reduce wepage loading by dynamic programing
+        if currTime in dp:
+            res = dp[currTime]
+        else:
+            res = getAllEntriesOnDate(driver, currTime, timeout)
+            dp[currTime] = res
         for dt, content in res.items():
             if start <= dt and dt <= end:
                 results[dt] = content
@@ -122,6 +127,8 @@ def printDict(result, runStart, runEnd, runID):
         if not insertedStart and time < runStart:
             insertedStart = True
             x.add_row(['8'*10, 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
+        if runID in content:
+            content = content.replace(runID, '>'*10 + runID + '<'*10)
         x.add_row([time.strftime('%B %d, %Y\n%H:%M:%S'), content])
     x.align['Content'] = 'l'
     return x.get_string()
@@ -137,6 +144,7 @@ def main(runList, badruns=None, driver=None, hoursBefore=7, timeout=30, timeSep=
             driver = browser.getDriver(firefox, timeout, username, password)
 
     results = {}
+    dp = {}
     for run in runList:
         runStart, runEnd, junk = findRunTime(run, driver, timeout)
         if junk:
@@ -144,7 +152,7 @@ def main(runList, badruns=None, driver=None, hoursBefore=7, timeout=30, timeSep=
             print(message)
         else:
             result = getEntriesInRange(driver, runStart - timedelta(hours=hoursBefore), 
-                                       runEnd + timedelta(minutes=30), timeout, timeSep)
+                                       runEnd + timedelta(minutes=60), timeout, timeSep, dp)
             message = printDict(result, runStart, runEnd, run)
         results[run] = message
     driver.quit()
