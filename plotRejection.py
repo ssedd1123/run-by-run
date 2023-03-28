@@ -126,6 +126,45 @@ def appendRunInfo(ax, fig, ele, energy):
     ax.text(0.15, 0.9, '%s $\sqrt{s_{NN}}$ = %s GeV' % (ele, energy), transform=fig.transFigure)
     ax.legend(bbox_to_anchor=(0.35, 1.0), loc='lower left', ncol=4, frameon=False, columnspacing=0.01, borderpad=0, handletextpad=0.1) 
 
+def main(runs, globalMean, globalStd, secMean, secStd,
+         x, xerr, runsRejected, reasonsRejected, 
+         varNames, counts, edgeRuns, 
+         allRunID, plotRange, rejectionRange, pseudoID, 
+         showEdgeRuns, spreadName, element, sNN,
+         genPDF, batch, plotGood, pdfSuffix=''):
+    print('Plot QA result.')
+    if counts is None:
+        counts = np.array([None]*x.shape[1])
+    for xcol, errcol, highlight, mcol, stdcol, mglobal, stdglobal, ytitle, coun in zip(x.T, xerr.T, reasonsRejected.T, secMean.T, secStd.T, globalMean, globalStd, varNames, counts.T):
+        fig, ax = plt.subplots(figsize=(15, 5))
+        statSummary = plotOutlier(ax, fig, runs, xcol*stdglobal + mglobal, #convert normalized values to real values 
+                                   errcol*stdglobal, runsRejected, edgeRuns, highlight, 
+                                   mcol*stdglobal + mglobal, stdcol*stdglobal, ytitle, allRunID,
+                                   plotRange, rejectionRange, pseudoID, 
+                                   showEdgeRuns, spreadName, coun)
+        appendRunInfo(ax, fig, element, sNN)
+        plt.tight_layout()
+        if genPDF:
+            plt.savefig(ytitle + pdfSuffix + '.pdf')
+    if not batch:
+        print('Close all the plots to continue')
+        plt.show()
+
+    if plotGood:
+        print('Plot QA result wight Just good runs.')
+        idRejected = np.searchsorted(runs, runsRejected)
+        main(np.delete(runs, idRejected), globalMean, globalStd, secMean, secStd,
+             np.delete(x, idRejected, axis=0), np.delete(xerr, idRejected, axis=0), 
+             [], reasonsRejected, 
+             varNames, None, edgeRuns,
+             allRunID, plotRange, rejectionRange, pseudoID,
+             showEdgeRuns, spreadName, element, sNN,
+             genPDF, batch, False, '.good')
+    return statSummary
+
+
+
+
 
 if __name__ == '__main__':
     from readFromROOT import getVarNames, readFromROOT, getNamesAllTProfile
@@ -159,42 +198,27 @@ if __name__ == '__main__':
     runs, x, xerr, x_mean, x_std, counts = readFromROOT(args.input, varNames, args.mapping)
 
     runsRejected = []
+    reasonsRejected = []
+    var2ID = dict(((var, i) for i, var in enumerate(varNames)))
     if args.badRuns is not None:
         with open(args.badRuns) as f:
-            runsRejected = [int(line.split(' ')[0]) for line in f]
-    print('Plotting result')
-    for xcol, errcol, globalMean, globalStd, ytitle, coun in zip(x.T, xerr.T, x_mean, x_std, varNames, counts.T):
-        fig, ax = plt.subplots(figsize=(15, 5))
-        statSummary = plotOutlier(ax, fig, runs, xcol*globalStd + globalMean, #convert normalized values to real values 
-                                   errcol*globalStd, runsRejected, np.array([]), [], 
-                                   np.array([globalMean]), np.array([globalStd]), ytitle, args.allRunID,
-                                   args.plotRange, 5, args.pseudoID, 
-                                   False, 'RMS', coun)
-        appendRunInfo(ax, fig, args.element, args.sNN)
-        plt.tight_layout()
-        if args.genPDF:
-            plt.savefig(ytitle + '.pdf')
-    if not args.batch:
-        print('Close all the plots to continue')
-        plt.show()
+            for line in f:
+                runAndReasons = line.split(' ')
+                runsRejected.append(int(runAndReasons[0]))
+                reasons = [False]*len(varNames)
+                for reason in runAndReasons[1:]:
+                    if reason:
+                        reasons[var2ID[reason.strip()]] =True
+                reasonsRejected.append(reasons)
 
-    if args.plotGood:
-        print('Plot QA result wight Just good runs.')
-        idRejected = np.searchsorted(runs, runsRejected)
-        for xcol, errcol, globalMean, globalStd, ytitle, coun in zip(x.T, xerr.T, x_mean, x_std, varNames, counts.T):
-            fig, ax = plt.subplots(figsize=(15, 5))
-            statSummary = plotOutlier(ax, fig, np.delete(runs, idRejected), np.delete(xcol, idRejected)*globalStd + globalMean, #convert normalized values to real values 
-                                       np.delete(errcol, idRejected)*globalStd, [], np.array([]), [], 
-                                       np.array([globalMean]), np.array([globalStd]), ytitle, args.allRunID,
-                                       args.plotRange, 5, args.pseudoID, 
-                                       False, 'RMS', coun)
-            appendRunInfo(ax, fig, args.element, args.sNN)
-            plt.tight_layout()
-            if args.genPDF:
-                plt.savefig(ytitle + '.good.pdf')
-        if not args.batch:
-            print('Close all the plots to continue')
-            plt.show()
+    reasonsRejected = np.array(reasonsRejected)
+    print('Plotting result')
+    main(runs, x_mean, x_std, np.atleast_2d(np.average(x, axis=0)), np.atleast_2d(np.std(x, axis=0)),
+         x, xerr, runsRejected, reasonsRejected, 
+         varNames, counts, [], 
+         args.allRunID, args.plotRange, 5, args.pseudoID,
+         False, 'RMS', args.element, args.sNN,
+         args.genPDF, args.batch, args.plotGood)
 
 
 
