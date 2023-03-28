@@ -2,7 +2,7 @@
 
 ONLY WORKS on machine with chrome installed. Does not work on RCAS unless you installed chrome manually there. I heard it's possible, but I haven't tried it.
 
-Run `pip3 install nltk prettytable selenium prompt_toolkit beautifulsoup4 pyfiglet`
+Run `python3 -m pip install nltk prettytable selenium prompt_toolkit beautifulsoup4 pyfiglet pynput`
 
 ## Download shift log
 
