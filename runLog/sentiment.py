@@ -17,18 +17,14 @@ def sentimentNLTK(result, **kwargs):
         raise e
     from nltk.sentiment import SentimentIntensityAnalyzer
     nltk.download('vader_lexicon')
-    negResult = {}
-    posResult = {}
     # Create an instance of the class
     sia = SentimentIntensityAnalyzer()
-
+    negRuns = []
     for runId, content in result.items():
         scores = sia.polarity_scores(content[0])
         if scores['neg'] > 0:
-            negResult[runId] = content
-        else:
-            posResult[runId] = content
-    return posResult, negResult
+            negRuns.append(runId)
+    return negRuns
 
 def sentimentTrans(result, threshold, **kwargs):
     try:
@@ -37,8 +33,7 @@ def sentimentTrans(result, threshold, **kwargs):
         print('Module transformer not found. Please install both transformer and tensorflow with pip. Abort')
         raise e
     sentiment_pipeline = pipeline('sentiment-analysis', truncation=True)
-    negResult = {}
-    posResult = {}
+    negRuns = []
 
     runIds = []
     contents = []
@@ -51,8 +46,6 @@ def sentimentTrans(result, threshold, **kwargs):
     results = sentiment_pipeline(contents)
     for runId, result, content in zip(runIds, results, fullContents):
         if result['label'] == 'NEGATIVE' and result['score'] > threshold:
-            negResult[runId] = content
-        else:
-            posResult[runId] = content
-    return posResult, negResult
+            negRuns.append(runId)
+    return negRuns
 

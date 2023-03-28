@@ -45,6 +45,7 @@ def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=Fa
     hoursBefore = 5
     results = {}
     dp = {}
+    junkID = []
     driver = browser.getDriver(firefox, timeout, username, password)
 
     for i, run in enumerate(runs):
@@ -60,6 +61,7 @@ def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=Fa
         runStart, runEnd, junk = sl.findRunTime(run, driver, timeout)
         if junk:
             results[run] = [('Run %s is marked as junk by ShiftLeader' % run)] * 2
+            junkID.append(run)
         else:
             result = sl.getEntriesInRange(driver, runStart - timedelta(hours=hoursBefore), 
                                        runEnd + timedelta(minutes=30), timeout, timeStep, dp)
@@ -67,12 +69,13 @@ def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=Fa
             selectedMessage = selectRun(result, run)
             messageBrief = ('\n' + '-' * 50 + '\n' + '-'*50 + '\n').join([content for _, content in selectedMessage.items()])
             results[run] = [messageBrief, messageDetail]
-    return results, driver
+    return results, driver, junkID
 
 def printBriefDict(result):
     x = PrettyTable()
     x.hrules=ALL
     x.field_names = ['RunID', 'Content']
+    x._max_width = {'RunID' : 10, 'Content': 70}
     for runId, content in result.items():
         x.add_row([runId, content[0]])
     x.align['Content'] = 'l'
@@ -87,12 +90,16 @@ def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI
         print('Reading json file %s' % input)
         with open(args.input) as f:
             result = json.load(f)
+        junkID = []
+        for id, (contentB, contentD) in result.items():
+            if contentB and contentB == contentD:
+                junkID.append(id)
     else:
         print('Reading bad run list from text file %s' % input)
         runId = getRunIdFromFile(input)
         if username is None or password is None:
             username, password = login()
-        result, driver = getShiftLogDetailed(runId, timeStep, username=username, password=password, **kwargs)
+        result, driver, junkID = getShiftLogDetailed(runId, timeStep, username=username, password=password, **kwargs)
         driver.quit()
     print('Saving shiftLog to %s' % output)
     with open(output, 'w') as f:
@@ -101,16 +108,16 @@ def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI
         print('Saving human-readable shiftLog to %s' % allOutput)
         with open(allOutput, 'w') as f:
             f.write(printBriefDict(result))
+    badRunsPreliminary = junkID
     if useAI:
-        pos, neg = sentiment(result, useAI, threshold=threshold)
-        intro = 'AI have selected %d runLog entries out of a total of %d for further review.' % (len(pos), len(result))
+        AIbadRunsPreliminary = sentiment(result, useAI, threshold=threshold)
+        badRunsPreliminary = badRunsPreliminary + AIbadRunsPreliminary
+        intro = 'AI thinks that %d runLog entries out of a total of %d are bad runs.\nBackground color will turn for red for those runs that are considered bad.' % (len(AIbadRunsPreliminary), len(result))
     else:
-        pos = result
-        neg = {}
         intro = 'There are %d runs to go through' % len(result)
     import UI
-    pos, moreNeg = UI.main(pos, intro)
-    for runID, content in moreNeg.items():
+    pos, neg = UI.main(result, badRunsPreliminary, intro)
+    for runID, content in neg.items():
         neg[runID] = content
     if posOutput is not None:
         with open(posOutput, 'w') as f:
