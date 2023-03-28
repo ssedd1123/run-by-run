@@ -2,6 +2,7 @@ from Segmentation2 import segmentation, plotSegmentationAndRejection
 from readFromROOT import getVarNames, readFromROOT, getNamesAllTProfile
 from outlierDetector import outlierDetector
 from plotRejection import plotOutlier, appendRunInfo
+import plotRejection as pr
 
 import matplotlib.pyplot as plt
 import argparse
@@ -167,40 +168,11 @@ if __name__ == '__main__':
     writeBadRuns(runsRejected, reasonsRejected, varNames, args.output, args.noReasons)
 
     # plot every observable
-    statSummary = ''
-    print('Plot QA result.')
-    for xcol, errcol, highlight, mcol, stdcol, globalMean, globalStd, ytitle, coun in zip(x.T, xerr.T, reasonsRejected.T, mean.T, std.T, x_mean, x_std, varNames, counts.T):
-        fig, ax = plt.subplots(figsize=(15, 5))
-        statSummary = plotOutlier(ax, fig, runs, xcol*globalStd + globalMean, #convert normalized values to real values 
-                                   errcol*globalStd, runsRejected, edgeRuns, highlight, 
-                                   mcol*globalStd + globalMean, stdcol*globalStd, ytitle, args.allRunID,
-                                   args.plotRange, args.rejectionRange, args.pseudoID, 
-                                   not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS', coun)
-        appendRunInfo(ax, fig, args.element, args.sNN)
-        plt.tight_layout()
-        if args.genPDF:
-            plt.savefig(ytitle + '.pdf')
-    if not args.batch:
-        print('Close all the plots to continue')
-        plt.show()
-
-    if args.plotGood:
-        print('Plot QA result wight Just good runs.')
-        idRejected = np.searchsorted(runs, runsRejected)
-        for xcol, errcol, highlight, mcol, stdcol, globalMean, globalStd, ytitle in zip(x.T, xerr.T, reasonsRejected.T, mean.T, std.T, x_mean, x_std, varNames):
-            fig, ax = plt.subplots(figsize=(15, 5))
-            plotOutlier(ax, fig, np.delete(runs, idRejected), np.delete(xcol, idRejected)*globalStd + globalMean, #convert normalized values to real values 
-                         np.delete(errcol, idRejected)*globalStd, [], edgeRuns, highlight, 
-                         mcol*globalStd + globalMean, stdcol*globalStd, ytitle, args.allRunID,
-                         args.plotRange, args.rejectionRange, args.pseudoID, not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS')
-            appendRunInfo(ax, fig, args.element, args.sNN)
-            plt.tight_layout()
-            if args.genPDF:
-                plt.savefig(ytitle + '.good.pdf')
-        if not args.batch:
-            print('Close all the plots to continue')
-            plt.show()
-
+    statSummary = pr.main(runs, x_mean, x_std, mean, std,
+                          x, xerr, runsRejected, reasonsRejected, varNames, counts, edgeRuns, 
+                          args.allRunID, args.plotRange, args.rejectionRange, args.pseudoID,
+                          not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS', args.element, args.sNN,
+                          args.genPDF, args.batch, args.plotGood)
 
     print('*'*100)
     print('%d runs rejected' % runsRejected.shape[0])
