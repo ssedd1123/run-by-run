@@ -109,7 +109,7 @@ text_area_box = Box(body=Frame(text_area), padding=1, style=get_style, height=Di
 root_container = Box(
     HSplit(
         [
-            Label(text="Control with (up, down, left, right/WASD), Pg Up, Pg Down and Enter keys. Shortcut: q is good-run, w is bad-run and tab is go back."),
+            Label(text="Control with (up, down, left, right), Pg Up, Pg Down and Enter keys. Shortcut: q is good-run, w is bad-run and tab is go back."),
             VSplit(
                 [
                     Box(
@@ -132,12 +132,9 @@ layout = Layout(container=root_container, focused_element=GoodRunButton)
 # also bind wasd for laptop users with not arrow keys
 kb = KeyBindings()
 kb.add("down")(focus_next)
-kb.add("s")(focus_next)
 kb.add("up")(focus_previous)
-kb.add("w")(focus_previous)
 
 @kb.add("left")
-@kb.add("a")
 def _(event):
     global TEXTTYPE
     if MULTABLE and TEXTTYPE == TEXT.DETAIL:
@@ -145,7 +142,6 @@ def _(event):
         text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
 
 @kb.add("right")
-@kb.add("d")
 def _(event):
     global TEXTTYPE
     if MULTABLE and TEXTTYPE == TEXT.BRIEF:
