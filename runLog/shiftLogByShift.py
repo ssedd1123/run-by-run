@@ -1,3 +1,4 @@
+import warnings
 from selenium import webdriver
 import time
 from selenium.webdriver.support import expected_conditions as EC
@@ -71,6 +72,8 @@ def getAllEntriesOnDate(driver, date, timeout):
         for table  in tables:
             timestamp = date
             rows = table.find_all('tr')
+            prevstamp = None
+            oneSec = timedelta(seconds=1)
             for row in rows:
                 # Find all cells in the row
                 cells = row.find_all("td")#[-1]
@@ -82,7 +85,14 @@ def getAllEntriesOnDate(driver, date, timeout):
                     if i == 0:
                         timeString = word[:5]
                         minHr = datetime.strptime(timeString, '%H:%M')
-                        timestamp = timestamp.replace(hour=minHr.hour, minute=minHr.minute)
+                        timestamp = timestamp.replace(hour=minHr.hour, minute=minHr.minute, second=0)
+                        # there could be multiple messages in a minutes
+                        if prevstamp == timestamp:
+                            timestamp = prevstamp + oneSec
+                            if prevstamp.minute != timestamp.minute:
+                                warnings.warn('What is this? There are more than 60 entries at time %s. Who wrote this? I am ignoring 61th and beyon entries created in this minute.' % prevstamp.strftime('%B %d, %Y %H:%M'))
+                                break
+                        prevstamp = timestamp
                     if i == 1:
                         entries[timestamp] = word
 
@@ -128,6 +138,6 @@ def printDict(result, runStart=None, runEnd=None, runID='0'):
             x.add_row(['8'*10, 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
         if runID in content:
             content = content.replace(runID, '>'*10 + runID + '<'*10)
-        x.add_row([time.strftime('%B %d, %Y\n%H:%M:%S'), content])
+        x.add_row([time.strftime('%B %d, %Y\n%H:%M'), content])
     x.align['Content'] = 'l'
     return x.get_string()
