@@ -25,34 +25,52 @@ def findRunTime(runID, driver, timeout):
         driver.get(url)
         WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('STAR RunLog Browser'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
     except:
-        print('Connection time out for run %s' % runID)
-        return None, None, True
+        raise RuntimeError('Connection time out for run %s' % runID)
  
     soup = BeautifulSoup(driver.page_source, "html.parser")
     if 'error' in soup.title.get_text().lower() or 'unauthorize' in soup.title.get_text().lower():
-        print('Cannot load shift log for run %s' % runID)
-        return None, None, True
-    try:
-        # see if it's mark as junk by shift Leader
-        # should NOT have been produced in the first place
-        # but it does happen
-        spans = soup.find_all('span', 'cr')
-        junk = False
-        if len(spans) > 0 and 'Marked as Junk' in spans[0].text:
-            junk = True
-        spans = soup.find_all('span', 'cg')
-        startTime = spans[0].text # first span should be RTS Start Time
-        startDateTime = parser.parse(startTime.lstrip('[').rstrip(']'))
-        endTime = spans[1].text # Second span should be RTS Stop Time
-        endDateTime = parser.parse(endTime.lstrip('[').rstrip(']'))
+        raise RuntimeError('Cannot load shift log for run %s' % runID)
+   
+    # see if it's mark as junk by shift Leader
+    # should NOT have been produced in the first place
+    # but it does happen
+    spans = soup.find_all('span', 'cr')
+    if len(spans) > 0 and 'Marked as Junk' in spans[0].text:
+        raise RuntimeError('Shift leader marked the run %s as junk' % runID)
+    spans = soup.find_all('span', 'cg')
+    startTime = spans[0].text # first span should be RTS Start Time
+    startDateTime = parser.parse(startTime.lstrip('[').rstrip(']'))
+    endTime = spans[1].text # Second span should be RTS Stop Time
+    endDateTime = parser.parse(endTime.lstrip('[').rstrip(']'))
 
-        # convert GMT to Eastern Time (daylight saving IS considered)
-        eastern = pytz.timezone('US/Eastern')
-        return startDateTime.astimezone(eastern), endDateTime.astimezone(eastern), junk
-    except Exception as e:
-        traceback.print_exc()
-        print('Cannot get time of run %s' % runID)
-        return None, None, True
+    # convert GMT to Eastern Time (daylight saving IS considered)
+    eastern = pytz.timezone('US/Eastern')
+    return startDateTime.astimezone(eastern), endDateTime.astimezone(eastern)
+
+def parseContent(cell):
+    # check if there are multiple versions
+    ver = cell.find_all('span')
+    aonclick = cell.find_all('a', onclick=True)
+    ahref = cell.find_all('a', href=True)
+    if len(ver) > 0 and len(aonclick) > 0:
+        # get the latest version
+        word = aonclick[-1].get_text(strip=True, separator='\n').replace('\t', ' ')
+        lastVer = ver[-1]
+        # remove all <del> element
+        for s in lastVer.select('del'):
+            s.extract()
+        # remove line break due to <strong> by replacing all <bn/> and don't use line break as tag separator
+        lastVer = BeautifulSoup(str(lastVer).replace('<br/>', '\n'), 'html.parser')
+        word = '*'*20 + word + '*'*20 + '\n' + lastVer.get_text(separator=' ').replace('\t', ' ')
+        # append the run ID back if exist
+        if len(ahref) > 0: 
+            word = ahref[0].get_text(strip=True, separator='\n').replace('\t', ' ') + '\n' + word
+    else:
+        word = cell.get_text(strip=True, separator='\n').replace('\t', ' ')
+    #return re.sub(r"\s*\n\s*", "\n", word)
+    return re.sub('\n\s*\n', '\n', re.sub('\n+', '\n', re.sub(r" +", " ", word))) # remove empty line, remove consecutive line breaks, remove consecutive spaces 
+
+
 
 def getAllEntriesOnDate(driver, date, timeout):
     url = "https://online.star.bnl.gov/apps/shiftLog%d/logForPeriod.jsp?startDate=%d/%d/%d&endDate=%d/%d/%d&B1=Submit" % (date.year, date.month, date.day, date.year, date.month, date.day, date.year)
@@ -80,9 +98,8 @@ def getAllEntriesOnDate(driver, date, timeout):
 
                 for i, cell in enumerate(cells):
                     # Print the cell text
-                    word = cell.get_text(strip=True, separator="\n").replace('\t', ' ')
-                    word = re.sub(r"\s*\n\s*", "\n", word)
                     if i == 0:
+                        word = cell.get_text(strip=True)
                         timeString = word[:5]
                         minHr = datetime.strptime(timeString, '%H:%M')
                         timestamp = timestamp.replace(hour=minHr.hour, minute=minHr.minute, second=0)
@@ -94,7 +111,8 @@ def getAllEntriesOnDate(driver, date, timeout):
                                 break
                         prevstamp = timestamp
                     if i == 1:
-                        entries[timestamp] = word
+                        #print(cell.find_all('a', href=true))
+                        entries[timestamp] = parseContent(cell)#word
 
     except Exception:
         traceback.print_exc()

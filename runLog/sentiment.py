@@ -2,12 +2,32 @@
 import json
 import argparse
 from prettytable import PrettyTable, ALL
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
 
 def sentiment(result, modelName='NLTK', **kwargs):
     if modelName == 'NLTK':
         return sentimentNLTK(result, **kwargs)
     else:
         return sentimentTrans(result, **kwargs)
+
+# create preprocess_text function
+def preprocess_text(text):
+    # Tokenize the text
+    tokens = word_tokenize(text.lower())
+
+    # Remove stop words
+    filtered_tokens = [token for token in tokens if token not in stopwords.words('english')]
+
+    # Lemmatize the tokens
+    lemmatizer = WordNetLemmatizer()
+    lemmatized_tokens = [lemmatizer.lemmatize(token) for token in filtered_tokens]
+
+    # Join the tokens back into a string
+    processed_text = ' '.join(lemmatized_tokens)
+    return processed_text
+
 
 def sentimentNLTK(result, **kwargs):
     try:
@@ -16,12 +36,13 @@ def sentimentNLTK(result, **kwargs):
         print('nltk module not found. Please install with pip. Abort')
         raise e
     from nltk.sentiment import SentimentIntensityAnalyzer
+    nltk.download('all')
     nltk.download('vader_lexicon')
     # Create an instance of the class
     sia = SentimentIntensityAnalyzer()
     negRuns = []
     for runId, content in result.items():
-        scores = sia.polarity_scores(content[0])
+        scores = sia.polarity_scores(preprocess_text(content[0]))
         if scores['neg'] > 0:
             negRuns.append(runId)
     return negRuns

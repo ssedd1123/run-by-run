@@ -37,7 +37,7 @@ def getRunIdFromFile(filename):
 def selectRun(results, runID):
     relevant = {}
     for dt, content in results.items():
-        if runID in content:
+        if content.startswith('Run ' + runID):
             relevant[dt] = content
     return relevant
 
@@ -58,9 +58,10 @@ def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=Fa
             raise RuntimeError('Cannot call window handles. Browser may have been closed manually. Abort')
             raise
  
-        runStart, runEnd, junk = sl.findRunTime(run, driver, timeout)
-        if junk:
-            results[run] = [('Run %s is marked as junk by ShiftLeader' % run)] * 2
+        try:
+            runStart, runEnd = sl.findRunTime(run, driver, timeout)
+        except Exception as e:
+            results[run] = [str(e)]*2
             junkID.append(run)
         else:
             result = sl.getEntriesInRange(driver, runStart - timedelta(hours=hoursBefore), 
