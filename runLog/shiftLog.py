@@ -26,13 +26,18 @@ def login():
 def getRunIdFromFile(filename):
     with open(filename) as f:
         runId = []
+        reasons = {}
         lines = f.readlines()
-        try:
-            for l in lines:
-                runId.append(int(l.split(' ')[0]))
-        except Exception:
-            pass
-    return runId
+        
+        for l in lines:
+            lsplit = l.split(' ', 1)
+            id_ = lsplit[0].strip()
+            runId.append(id_)
+            if len(lsplit) == 2:
+                reasons[id_] = lsplit[1]
+            else:
+                reasons[id_] = 'None provided'
+    return runId, reasons
 
 def selectRun(results, runID):
     relevant = {}
@@ -42,7 +47,6 @@ def selectRun(results, runID):
     return relevant
 
 def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=False, timeout=60, **kwargs):
-    hoursBefore = 5
     results = {}
     dp = {}
     junkID = []
@@ -61,15 +65,18 @@ def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=Fa
         try:
             runStart, runEnd = sl.findRunTime(run, driver, timeout)
         except Exception as e:
-            results[run] = [str(e)]*2
+            results[run] = [str(e)]*3
             junkID.append(run)
         else:
-            result = sl.getEntriesInRange(driver, runStart - timedelta(hours=hoursBefore), 
-                                       runEnd + timedelta(minutes=30), timeout, timeStep, dp)
+            result, summary = sl.getEntriesAndSummary(driver, runStart, runEnd, timedelta(hours=10),
+                                                      timedelta(minutes=30), timedelta(minutes=30), 
+                                                      timeout, timeStep, dp)
             messageDetail = sl.printDict(result, runStart, runEnd, run)
             selectedMessage = selectRun(result, run)
             messageBrief = ('\n' + '-' * 50 + '\n' + '-'*50 + '\n').join([content for _, content in selectedMessage.items()])
-            results[run] = [messageBrief, messageDetail]
+            if summary is None:
+                summary = 'Summary not found'
+            results[run] = [messageBrief, messageDetail, summary[1]]
     return results, driver, junkID
 
 def printBriefDict(result):
@@ -84,40 +91,45 @@ def printBriefDict(result):
 
 
 
-def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, **kwargs):
-    _, ext = os.path.splitext(input)
-    driver = None
-    if ext == '.json':
+def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, jsonInput=None, **kwargs):
+    print('Reading bad run list from text file %s' % input)
+    runId, reasons = getRunIdFromFile(input)
+
+    if jsonInput is not None:
         print('Reading json file %s' % input)
-        with open(args.input) as f:
+        print('Will not write any json output')
+        with open(jsonInput) as f:
             result = json.load(f)
         junkID = []
-        for id, (contentB, contentD) in result.items():
+        for id, (contentB, contentD, _) in result.items():
             if contentB and contentB == contentD:
                 junkID.append(id)
+        assert runId == list(result.keys()), "Run ID from input and json file do not agree. Make sure you have the right file. Otherwise download everything from shift log from scratch."
     else:
-        print('Reading bad run list from text file %s' % input)
-        runId = getRunIdFromFile(input)
         if username is None or password is None:
             username, password = login()
         result, driver, junkID = getShiftLogDetailed(runId, timeStep, username=username, password=password, **kwargs)
         driver.quit()
-    print('Saving shiftLog to %s' % output)
+        print('Saving shiftLog to %s' % output)
     with open(output, 'w') as f:
         json.dump(result, f)
     if allOutput is not None:
         print('Saving human-readable shiftLog to %s' % allOutput)
         with open(allOutput, 'w') as f:
             f.write(printBriefDict(result))
-    badRunsPreliminary = junkID
+    badRuns = None
+    badHistory = None
+    badSummary = None
     if useAI:
-        AIbadRunsPreliminary = sentiment(result, useAI, threshold=threshold)
-        badRunsPreliminary = badRunsPreliminary + AIbadRunsPreliminary
-        intro = 'AI thinks that %d runLog entries out of a total of %d are bad runs.\nBackground color will turn for red for those runs that are considered bad.' % (len(AIbadRunsPreliminary), len(result))
+        AIbadRuns, AIbadHistory, AIbadSummary= sentiment(result, useAI, threshold=threshold)
+        badRuns = junkID + AIbadRuns
+        badHistory = junkID + AIbadHistory
+        badSummary = junkID + AIbadSummary
+        intro = 'AI thinks that %d runLog entries out of a total of %d are bad runs.\nBackground color will turn for red for those runs that are considered bad.' % (len(AIbadRuns), len(result))
     else:
         intro = 'There are %d runs to go through' % len(result)
     import UI
-    pos, neg = UI.main(result, badRunsPreliminary, intro)
+    pos, neg = UI.main(result, reasons, badRuns, badHistory, badSummary, intro=intro)
     for runID, content in neg.items():
         neg[runID] = content
     if posOutput is not None:
@@ -141,8 +153,9 @@ def printBanner():
 if __name__ == '__main__':
     printBanner()
     parser = argparse.ArgumentParser(description='Robot that fetch shiftLog online')
-    parser.add_argument('-i', '--input', required=True, help='Text file with all the bad runs from QA script OR json file of shiftLog. If json file is provided, It will not load shiftLog online.')
-    parser.add_argument('-o', '--output', required=True, help='Name of the json file to which ALL runlog are stored.')
+    parser.add_argument('-i', '--input', required=True, help='Text file with all the bad runs from QA script')
+    parser.add_argument('-ji', '--jsonInput', help='Json file of shiftLog. If json file is provided, It will not load shiftLog online.')
+    parser.add_argument('-o', '--output', required=True, help='Name of the json file to which ALL runlog are stored. Will be disabled if -ji is provided.')
     parser.add_argument('-br', '--badrun', required=True, help='Name of the text file of all the bad runs')
     parser.add_argument('-t', '--timeStep', type=float, default=0.5, help='Refresh interval to fetch run-log. Cannot be too short to avoid DDoS.')
     parser.add_argument('-ao', '--allOutput', help='Name of the human readible file to which all run are stored.')
@@ -162,5 +175,5 @@ if __name__ == '__main__':
     main(args.input, args.output, args.timeStep, args.allOutput, 
          args.badrun, args.posOutput, args.negOutput, args.useAI, 
          threshold=args.threshold, username=args.username, password=args.password, 
-         firefox=args.useFirefox, timeout=args.timeout)
+         firefox=args.useFirefox, timeout=args.timeout, jsonInput=args.jsonInput)
     print('*' * 100)

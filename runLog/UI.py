@@ -2,13 +2,14 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.bindings.focus import focus_next, focus_previous
-from prompt_toolkit.layout import HSplit, Layout, VSplit, Dimension
+from prompt_toolkit.layout import HSplit, Layout, VSplit, Dimension, Window
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Box, Button, Frame, Label, TextArea
+from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.key_binding.bindings.page_navigation import scroll_one_line_up, scroll_one_line_down
 from enum import Enum
 
-TEXT = Enum('TEXT', 'BRIEF DETAIL', start=0)
+TEXT = Enum('TEXT', 'BRIEF HISTORY SUMMARY', start=0)
 STATUS = Enum('STATUS', 'GOOD BAD NOTSELECTED', start=0)
 
 RESULT = None
@@ -18,11 +19,38 @@ CURRID = 0
 TEXTTYPE = TEXT.BRIEF
 MULTABLE = False # disable left/right arrow if not multable
 HIGHLIGHT = None # should be list of True/False with CURRID as index. Color on text area changes if True
+HISTORYHIGHLIGHT = None
+SUMMARYHIGHLIGHT = None
+INTROTEXT = "Control with (up, down, left, right), Pg Up, Pg Down and Enter keys. Shortcut: q is good-run, w is bad-run and tab is go back."
+REASONS = None # Reason for each run to be here. Should be list of string
+
 
 def on_change():
     GoBackButton.text = 'Go Back'
     ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
     if CURRID < len(KEYS):
+        text_reason.text = 'Current run = %s for reason %s' % (KEYS[CURRID], REASONS[CURRID])
+        if SUMMARYHIGHLIGHT is None:
+            summary_sentement_label.text = ''
+        elif SUMMARYHIGHLIGHT[CURRID]:
+            summary_sentement_label.text = 'Bad Summary'
+        else:
+            summary_sentement_label.text = 'Good Summary'
+
+        if HISTORYHIGHLIGHT is None:
+            history_sentement_label.text = ''
+        elif HISTORYHIGHLIGHT[CURRID]:
+            history_sentement_label.text = 'Bad history'
+        else:
+            history_sentement_label.text = 'Good history'
+
+        if HIGHLIGHT is None:
+            entry_sentement_label.text = ''
+        elif HIGHLIGHT[CURRID]:
+            entry_sentement_label.text = 'Bad Entry'
+        else:
+            entry_sentement_label.text = 'Good Entry'
+
         if IDSTATUS[CURRID] == STATUS.GOOD:
             GoodRunButton.text = 'Good-run*'
         else:
@@ -90,18 +118,49 @@ def exit_clicked():
 
 
 # All the widgets for the UI.
-GoodRunButton = Button("Next", handler=good_clicked, width=30)
-BadRunButton  = Button("", handler=bad_clicked, width=30)
-GoBackButton  = Button("", handler=back_clicked, width=30)
-ExitButton    = Button("", handler=exit_clicked,  width=30)
+GoodRunButton = Button("Next", handler=good_clicked, width=25)
+BadRunButton  = Button("", handler=bad_clicked, width=25)
+GoBackButton  = Button("", handler=back_clicked, width=25)
+ExitButton    = Button("", handler=exit_clicked,  width=25)
 text_area = TextArea(focusable=False, scrollbar=True)
-def get_style() -> str:
-    if HIGHLIGHT is not None and CURRID >= 0 and CURRID < len(HIGHLIGHT):
-        if HIGHLIGHT[CURRID]:
-            return 'class:right-pane-bad'
-    return 'class:right-pane'
-text_area_box = Box(body=Frame(text_area), padding=1, style=get_style, height=Dimension(max=100))
+text_area_box = Box(body=Frame(text_area), padding=1, style='class:right-pane', height=Dimension(max=100))
 
+text_label = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(preferred=1))
+text_label.text = INTROTEXT
+
+text_reason = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(preferred=1))
+text_content_type = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(preferred=1))
+
+entry_sentement_label = TextArea(focusable=False, width=25)
+entry_sentement_label.text = 'Entry is good' + '-'*20
+def get_entry_style() -> str:
+    if HIGHLIGHT is None or CURRID < 0:
+        return 'class:left-pane'
+    elif CURRID >= 0 and CURRID < len(HIGHLIGHT):
+        if HIGHLIGHT[CURRID]:
+            return 'class:indicator-bad'
+    return 'class:indicator-good'
+
+history_sentement_label = TextArea(focusable=False, width=25)
+history_sentement_label.text = 'History is good'
+def get_history_style() -> str:
+    if HISTORYHIGHLIGHT is None or CURRID < 0:
+        return 'class:left-pane'
+    elif CURRID >= 0 and CURRID < len(HISTORYHIGHLIGHT):
+        if HISTORYHIGHLIGHT[CURRID]:
+            return 'class:indicator-bad'
+    return 'class:indicator-good'
+
+
+summary_sentement_label = TextArea(focusable=False, width=25)
+summary_sentement_label.text = 'Summary is good'
+def get_summary_style() -> str:
+    if SUMMARYHIGHLIGHT is None or CURRID < 0:
+        return 'class:left-pane'
+    elif CURRID >= 0 and CURRID < len(SUMMARYHIGHLIGHT):
+        if SUMMARYHIGHLIGHT[CURRID]:
+            return 'class:indicator-bad'
+    return 'class:indicator-good'
 
 # Combine all the widgets in a UI.
 # The `Box` object ensures that padding will be inserted around the containing
@@ -109,19 +168,25 @@ text_area_box = Box(body=Frame(text_area), padding=1, style=get_style, height=Di
 root_container = Box(
     HSplit(
         [
-            Label(text="Control with (up, down, left, right), Pg Up, Pg Down and Enter keys. Shortcut: q is good-run, w is bad-run and tab is go back."),
+            text_label,
+            VSplit([text_content_type, text_reason]),
             VSplit(
                 [
                     Box(
-                        body=HSplit([GoodRunButton, BadRunButton, GoBackButton, ExitButton], padding=1),
+                        body=HSplit([GoodRunButton, BadRunButton, GoBackButton, ExitButton,
+                                     Box(body=TextArea(focusable=False), style='class:left-pane'),
+                                     Box(body=entry_sentement_label, style=get_entry_style, height=1),
+                                     Box(body=history_sentement_label, style=get_history_style, height=1),
+                                     Box(body=summary_sentement_label, style=get_summary_style, height=1)], padding=1, width=25),
                         padding=1,
                         style="class:left-pane",
-                        height=Dimension(preferred=50)
+                        height=Dimension(preferred=55),
                     ),
                     text_area_box
                 ]
             ),
-        ], width=Dimension(preferred=110)
+        ], width=Dimension(preferred=110),
+        height=Dimension(preferred=57),
     ),
 )
 
@@ -137,16 +202,18 @@ kb.add("up")(focus_previous)
 @kb.add("left")
 def _(event):
     global TEXTTYPE
-    if MULTABLE and TEXTTYPE == TEXT.DETAIL:
-        TEXTTYPE = TEXT.BRIEF
+    if MULTABLE and TEXTTYPE != TEXT.BRIEF:
+        TEXTTYPE = TEXT(TEXTTYPE.value - 1)
         text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+        text_content_type.text = "Content type " + TEXTTYPE.name
 
 @kb.add("right")
 def _(event):
     global TEXTTYPE
-    if MULTABLE and TEXTTYPE == TEXT.BRIEF:
-        TEXTTYPE = TEXT.DETAIL
+    if MULTABLE and TEXTTYPE != TEXT.SUMMARY:
+        TEXTTYPE = TEXT(TEXTTYPE.value + 1)
         text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+        text_content_type.text = "Content type " + TEXTTYPE.name
 
 @kb.add("pageup")
 def _(event):
@@ -183,12 +250,14 @@ def _(event):
 style = Style(
     [
         ("left-pane", "bg:#888800 #000000"),
-        ("right-pane", "bg:#00aa00 #000000"),
-        ("right-pane-bad", "bg:#aa0000 #000000"),
+        ("right-pane", "bg:#aaaaaa #000000"),
+        ("indicator-bad", "bg:#aa0000 #000000"),
+        ("indicator-good", "bg:#00aa00 #000000"),
         ("button", "#000000"),
         ("button-arrow", "#000000"),
         ("button focused", "bg:#ff0000"),
         ("text-area focused", "bg:#ff0000"),
+        ("label", "bg:#000000"),
     ]
 )
 
@@ -197,28 +266,53 @@ style = Style(
 application = Application(layout=layout, key_bindings=kb, style=style, full_screen=True)
 
 
-def main(result, badKeys=None, intro=''):
-    global RESULT, IDSTATUS, CURRID, KEYS, TEXTTYPE, HIGHLIGHT
+def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=''):
+    global RESULT, IDSTATUS, CURRID, KEYS, TEXTTYPE, HIGHLIGHT, REASONS, SUMMARYHIGHLIGHT, HISTORYHIGHLIGHT
     # remove empty entry
     KEYS = []
     RESULT = {}
+    REASONS = []
     GoodRunButton.text = "Next"
     BadRunButton.text = ""
     GoBackButton.text = ""
     ExitButton.text = "" 
+    text_reason.text = ""
+    text_content_type.text = "Content type " + TEXTTYPE.name
+    summary_sentement_label.text = ""
+    history_sentement_label.text = ""
+    entry_sentement_label.text = ""
     TEXTTYPE = TEXT.BRIEF
-    HIGHLIGHT = []
 
     # hash table is more efficient for lookup
-    badKeys = set(badKeys)
+    if badKeys is not None:
+        badKeys = set(badKeys)
+        HIGHLIGHT = []
+    if badHistory is not None:
+        badHistory = set(badHistory)
+        HISTORYHIGHLIGHT = []
+    if badSummary is not None:
+        badSummary = set(badSummary)
+        SUMMARYHIGHLIGHT = []
 
     for key, content in result.items():
         KEYS.append(key)
-        if badKeys is not None and key in badKeys:
-            HIGHLIGHT.append(True)
-        else:
-            HIGHLIGHT.append(False)
+        if badKeys is not None:
+            if key in badKeys:
+                HIGHLIGHT.append(True)
+            else:
+               HIGHLIGHT.append(False)
+        if badHistory is not None:
+            if key in badHistory:
+                HISTORYHIGHLIGHT.append(True)
+            else:
+                HISTORYHIGHLIGHT.append(False)
+        if badSummary is not None:
+            if key in badSummary:
+                SUMMARYHIGHLIGHT.append(True)
+            else:
+                SUMMARYHIGHLIGHT.append(False)
         RESULT[key] = content
+        REASONS.append(reasons[key])
         IDSTATUS.append(STATUS.NOTSELECTED)
 
     CURRID = -1
@@ -237,6 +331,7 @@ def main(result, badKeys=None, intro=''):
 
 
 if __name__ == "__main__":
-    results = {1: ['brief1', 'Problematic1 '], 2: ['brief2', 'Problematic2'], 3: ['brief3', 'Non-problematic3']}
-    pos, neg = main(results, [1, 3])
+    results = {1: ['brief1', 'Problematic1 ', 'sum1'], 2: ['brief2', 'Problematic2', 'sum2'], 3: ['brief3', 'Non-problematic3', 'sum3']}
+    reasons = {1: 'bad1', 2: 'bad2', 3: 'bad3'}
+    pos, neg = main(results, reasons)#, [1, 3])
     print(pos, neg)

@@ -41,11 +41,24 @@ def sentimentNLTK(result, **kwargs):
     # Create an instance of the class
     sia = SentimentIntensityAnalyzer()
     negRuns = []
+    negHistory = []
+    negSummary = []
     for runId, content in result.items():
         scores = sia.polarity_scores(preprocess_text(content[0]))
         if scores['neg'] > 0:
             negRuns.append(runId)
-    return negRuns
+        splited = content[1].split('RUN' + runId + 'START')
+        if len(splited) == 2:
+            scores = sia.polarity_scores(preprocess_text(splited[1].lstrip('8')))
+        else:
+            scores = {'neg': -1}
+        #scores = sia.polarity_scores(preprocess_text(content[2].split('run number | status | nEvents |')[0]))
+        if scores['neg'] > 0:
+            negHistory.append(runId)
+        scores = sia.polarity_scores(preprocess_text(content[2]))
+        if scores['neg'] > 0:
+            negSummary.append(runId)
+    return negRuns, negHistory, negSummary
 
 def sentimentTrans(result, threshold, **kwargs):
     try:

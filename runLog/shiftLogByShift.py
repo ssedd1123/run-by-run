@@ -51,24 +51,30 @@ def parseContent(cell):
     # check if there are multiple versions
     ver = cell.find_all('span')
     aonclick = cell.find_all('a', onclick=True)
-    ahref = cell.find_all('a', href=True)
     if len(ver) > 0 and len(aonclick) > 0:
+        headerList = []
+        for ele in aonclick[0].previous_siblings:
+            headerList.append(ele.text.strip())
+        for pele in aonclick[0].parents:
+            if pele.name == 'td':
+                break # we moved into previous column. Not what we needed
+            for ele in pele.previous_siblings:
+                headerList.append(ele.text.strip())
+
         # get the latest version
-        word = aonclick[-1].get_text(strip=True, separator='\n').replace('\t', ' ')
+        word = (' '.join(reversed(headerList))).lstrip() + '\n'
+        word = word + '*' * 20 + aonclick[-1].get_text(strip=True, separator='\n').replace('\t', ' ') + '*' * 20 + '\n'
         lastVer = ver[-1]
         # remove all <del> element
         for s in lastVer.select('del'):
             s.extract()
-        # remove line break due to <strong> by replacing all <bn/> and don't use line break as tag separator
+        # remove line break due to <strong> by replacing all <bn/> as line break and don't use line break as tag separator
         lastVer = BeautifulSoup(str(lastVer).replace('<br/>', '\n'), 'html.parser')
-        word = '*'*20 + word + '*'*20 + '\n' + lastVer.get_text(separator=' ').replace('\t', ' ')
-        # append the run ID back if exist
-        if len(ahref) > 0: 
-            word = ahref[0].get_text(strip=True, separator='\n').replace('\t', ' ') + '\n' + word
+        word = word + lastVer.get_text(separator=' ').replace('\t', ' ')
     else:
         word = cell.get_text(strip=True, separator='\n').replace('\t', ' ')
-    #return re.sub(r"\s*\n\s*", "\n", word)
-    return re.sub('\n\s*\n', '\n', re.sub('\n+', '\n', re.sub(r" +", " ", word))) # remove empty line, remove consecutive line breaks, remove consecutive spaces 
+    # remove empty line, remove consecutive line breaks, remove consecutive spaces
+    return re.sub('\n\s*\n', '\n', re.sub('\n+', '\n', re.sub(r" +", " ", word)))  
 
 
 
@@ -96,23 +102,26 @@ def getAllEntriesOnDate(driver, date, timeout):
                 # Find all cells in the row
                 cells = row.find_all("td")#[-1]
 
-                for i, cell in enumerate(cells):
-                    # Print the cell text
-                    if i == 0:
-                        word = cell.get_text(strip=True)
-                        timeString = word[:5]
-                        minHr = datetime.strptime(timeString, '%H:%M')
-                        timestamp = timestamp.replace(hour=minHr.hour, minute=minHr.minute, second=0)
-                        # there could be multiple messages in a minutes
-                        if prevstamp == timestamp:
-                            timestamp = prevstamp + oneSec
-                            if prevstamp.minute != timestamp.minute:
-                                warnings.warn('What is this? There are more than 60 entries at time %s. Who wrote this? I am ignoring 61th and beyon entries created in this minute.' % prevstamp.strftime('%B %d, %Y %H:%M'))
-                                break
-                        prevstamp = timestamp
-                    if i == 1:
-                        #print(cell.find_all('a', href=true))
-                        entries[timestamp] = parseContent(cell)#word
+                # there should be a time and content column
+                if len(cells) != 2:
+                    continue
+
+                # get time
+                word = cells[0].get_text(strip=True)
+                timeString = word[:5]
+                minHr = datetime.strptime(timeString, '%H:%M')
+                timestamp = timestamp.replace(hour=minHr.hour, minute=minHr.minute, second=0)
+
+                # there could be multiple messages in a minutes
+                if prevstamp == timestamp:
+                    timestamp = prevstamp + oneSec
+                    if prevstamp.minute != timestamp.minute:
+                        warnings.warn('What is this? There are more than 60 entries at time %s. Who wrote this? I am ignoring 61th and beyon entries created in this minute.' % prevstamp.strftime('%B %d, %Y %H:%M'))
+                        continue
+                prevstamp = timestamp
+
+                # save content
+                entries[timestamp] = parseContent(cells[1])
 
     except Exception:
         traceback.print_exc()
@@ -139,23 +148,44 @@ def getEntriesInRange(driver, start, end, timeout, timeSep, dp):
         time.sleep(timeSep)
     return results
 
+def getEntriesAndSummary(driver, start, end, searchWindows, 
+                         deltaBefore, deltaAfter, timeout, timeSep, dp):
+    summaryResult = None
+    results = getEntriesInRange(driver, start - deltaBefore,  
+                                max(end + deltaAfter, start + searchWindows), timeout, timeSep, dp)
+    finalResults = {}
+    # search for summary before current datetime
+    for currTime, content in results.items():
+        if start - deltaBefore <= currTime and currTime <= end + deltaAfter:
+            finalResults[currTime] = content
+        if summaryResult is None and content.startswith('Summary Report'):
+            if currTime > end:
+                summaryResult = (currTime, content)
+    return finalResults, summaryResult
+
 def printDict(result, runStart=None, runEnd=None, runID='0'):
     x = PrettyTable()
     x.hrules=ALL
     x.field_names = ['Time', 'Content']
-    x._max_width = {'Time' : 10, 'Content' : 70}
+    x._max_width = {'Time' : 10, 'Content' : 80}
     # reverse chronological order
     insertedStart = False
     insertedEnd = False
-    for time, content in sorted(list(result.items()), key=lambda x:x[0], reverse=True):
-        if runEnd is not None and not insertedEnd and time < runEnd:
-            insertedEnd = True
-            x.add_row(['8'*10, 'RUN' + runID + 'END' + '8'*(70 - 6 - len(runID) if 70 - 6 - len(runID) > 0 else 1)])
-        if runStart is not None and not insertedStart and time < runStart:
+    for time, content in sorted(list(result.items()), key=lambda x:x[0]):#, reverse=True):
+        if runStart is not None and not insertedStart and time > runStart:
             insertedStart = True
             x.add_row(['8'*10, 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
+        if runEnd is not None and not insertedEnd and time > runEnd:
+            insertedEnd = True
+            x.add_row(['8'*10, 'RUN' + runID + 'END' + '8'*(70 - 6 - len(runID) if 70 - 6 - len(runID) > 0 else 1)])
         if runID in content:
             content = content.replace(runID, '>'*10 + runID + '<'*10)
         x.add_row([time.strftime('%B %d, %Y\n%H:%M'), content])
+    # guarantee to have RUN<runID>START and END line if runStart and runEnd is not None
+    if runStart is not None and not insertedStart:
+        x.add_row(['8'*10, 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
+    if runEnd is not None and not insertedEnd:
+        x.add_row(['8'*10, 'RUN' + runID + 'END' + '8'*(70 - 6 - len(runID) if 70 - 6 - len(runID) > 0 else 1)])
+
     x.align['Content'] = 'l'
     return x.get_string()
