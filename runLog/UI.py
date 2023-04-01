@@ -71,6 +71,9 @@ def good_clicked():
         return #button disabled if text on button is removed
     if CURRID >= 0:
         IDSTATUS[CURRID] = STATUS.GOOD
+    else:
+        MULTABLE = True
+        left_clicked()
     CURRID = CURRID + 1
     MULTABLE = True
     on_change()
@@ -116,20 +119,42 @@ def exit_clicked():
             IDSTATUS[i] = STATUS.GOOD
         get_app().exit()
 
+def left_clicked():
+    global TEXTTYPE
+    if MULTABLE and TEXTTYPE != TEXT.BRIEF:
+        TEXTTYPE = TEXT(TEXTTYPE.value - 1)
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+        text_content_type.text = "Content type " + TEXTTYPE.name
+        LeftArrow.text = '' if TEXTTYPE == TEXT.BRIEF else TEXT(TEXTTYPE.value - 1).name
+        RightArrow.text = '' if TEXTTYPE == TEXT.SUMMARY else TEXT(TEXTTYPE.value + 1).name
+
+def right_clicked():
+    global TEXTTYPE
+    if MULTABLE and TEXTTYPE != TEXT.SUMMARY:
+        TEXTTYPE = TEXT(TEXTTYPE.value + 1)
+        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
+        text_content_type.text = "Content type " + TEXTTYPE.name
+        LeftArrow.text = '' if TEXTTYPE == TEXT.BRIEF else TEXT(TEXTTYPE.value - 1).name
+        RightArrow.text = '' if TEXTTYPE == TEXT.SUMMARY else TEXT(TEXTTYPE.value + 1).name
+
 
 # All the widgets for the UI.
 GoodRunButton = Button("Next", handler=good_clicked, width=25)
 BadRunButton  = Button("", handler=bad_clicked, width=25)
 GoBackButton  = Button("", handler=back_clicked, width=25)
 ExitButton    = Button("", handler=exit_clicked,  width=25)
+LeftArrow     = Button("", handler=left_clicked, width=10, left_symbol='<', right_symbol='')
+RightArrow    = Button("", handler=right_clicked, width=10, left_symbol='', right_symbol='>')
+
+
 text_area = TextArea(focusable=False, scrollbar=True)
-text_area_box = Box(body=Frame(text_area), padding=1, style='class:right-pane', height=Dimension(max=100))
+text_area_box = Box(body=Frame(text_area), padding=0, style='class:right-pane', height=Dimension(max=100))
 
 text_label = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(preferred=1))
 text_label.text = INTROTEXT
 
 text_reason = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(preferred=1))
-text_content_type = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(preferred=1))
+text_content_type = TextArea(focusable=False, scrollbar=False, height=Dimension(preferred=1))
 
 entry_sentement_label = TextArea(focusable=False, width=25)
 entry_sentement_label.text = 'Entry is good' + '-'*20
@@ -169,7 +194,7 @@ root_container = Box(
     HSplit(
         [
             text_label,
-            VSplit([text_content_type, text_reason]),
+            text_reason,
             VSplit(
                 [
                     Box(
@@ -182,7 +207,8 @@ root_container = Box(
                         style="class:left-pane",
                         height=Dimension(preferred=55),
                     ),
-                    text_area_box
+                    HSplit([Box(body=VSplit([LeftArrow, Box(body=text_content_type, style='class:right-pane', width=Dimension(preferred=55)), RightArrow]), style='class:right-pane', height=1, padding=0),
+                            text_area_box], padding=0)
                 ]
             ),
         ], width=Dimension(preferred=110),
@@ -201,19 +227,11 @@ kb.add("up")(focus_previous)
 
 @kb.add("left")
 def _(event):
-    global TEXTTYPE
-    if MULTABLE and TEXTTYPE != TEXT.BRIEF:
-        TEXTTYPE = TEXT(TEXTTYPE.value - 1)
-        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
-        text_content_type.text = "Content type " + TEXTTYPE.name
+    left_clicked()
 
 @kb.add("right")
 def _(event):
-    global TEXTTYPE
-    if MULTABLE and TEXTTYPE != TEXT.SUMMARY:
-        TEXTTYPE = TEXT(TEXTTYPE.value + 1)
-        text_area.text = RESULT[KEYS[CURRID]][TEXTTYPE.value]
-        text_content_type.text = "Content type " + TEXTTYPE.name
+    right_clicked()
 
 @kb.add("pageup")
 def _(event):
@@ -263,7 +281,7 @@ style = Style(
 
 
 # Build a main application object.
-application = Application(layout=layout, key_bindings=kb, style=style, full_screen=True)
+application = Application(layout=layout, key_bindings=kb, style=style, full_screen=True, mouse_support=True)
 
 
 def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=''):
@@ -277,11 +295,11 @@ def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=
     GoBackButton.text = ""
     ExitButton.text = "" 
     text_reason.text = ""
-    text_content_type.text = "Content type " + TEXTTYPE.name
+    text_content_type.text = "" 
     summary_sentement_label.text = ""
     history_sentement_label.text = ""
     entry_sentement_label.text = ""
-    TEXTTYPE = TEXT.BRIEF
+    TEXTTYPE = TEXT.HISTORY # the prompt is initialized by an automatic left click, so starts at center for the automatic left-click to be registered
 
     # hash table is more efficient for lookup
     if badKeys is not None:

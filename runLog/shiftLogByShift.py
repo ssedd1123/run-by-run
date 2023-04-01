@@ -174,18 +174,18 @@ def printDict(result, runStart=None, runEnd=None, runID='0'):
     for time, content in sorted(list(result.items()), key=lambda x:x[0]):#, reverse=True):
         if runStart is not None and not insertedStart and time > runStart:
             insertedStart = True
-            x.add_row(['8'*10, 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
-        if runEnd is not None and not insertedEnd and time > runEnd:
+            x.add_row([runStart.strftime('%H:%M'), 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
+        if runEnd is not None and not insertedEnd and time >= runEnd:
             insertedEnd = True
-            x.add_row(['8'*10, 'RUN' + runID + 'END' + '8'*(70 - 6 - len(runID) if 70 - 6 - len(runID) > 0 else 1)])
+            x.add_row([runEnd.strftime('%H:%M'), 'RUN' + runID + 'END' + '8'*(70 - 6 - len(runID) if 70 - 6 - len(runID) > 0 else 1)])
         if runID in content:
             content = content.replace(runID, '>'*10 + runID + '<'*10)
         x.add_row([time.strftime('%B %d, %Y\n%H:%M'), content])
     # guarantee to have RUN<runID>START and END line if runStart and runEnd is not None
     if runStart is not None and not insertedStart:
-        x.add_row(['8'*10, 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
+        x.add_row([runStart.strftime('%H:%M'), 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])
     if runEnd is not None and not insertedEnd:
-        x.add_row(['8'*10, 'RUN' + runID + 'END' + '8'*(70 - 6 - len(runID) if 70 - 6 - len(runID) > 0 else 1)])
+        x.add_row([runEnd.strftime('%H:%M'), 'RUN' + runID + 'END' + '8'*(70 - 6 - len(runID) if 70 - 6 - len(runID) > 0 else 1)])
 
     x.align['Content'] = 'l'
     return x.get_string()
