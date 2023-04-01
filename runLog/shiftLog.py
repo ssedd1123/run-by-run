@@ -17,6 +17,7 @@ import getpass
 
 import shiftLogByShift as sl
 import browser 
+from pageCache import PageCache
 
 def login():
     username = input('Enter shift log username: ')
@@ -46,7 +47,7 @@ def selectRun(results, runID):
             relevant[dt] = content
     return relevant
 
-def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=False, timeout=60, **kwargs):
+def getShiftLogDetailed(runs, pc, username=None, password=None, firefox=False, timeout=60, **kwargs):
     results = {}
     dp = {}
     junkID = []
@@ -56,21 +57,16 @@ def getShiftLogDetailed(runs, timeStep, username=None, password=None, firefox=Fa
         run = str(run)
         print('Loading history for run %s (%d/%d)' % (run, i+1, len(runs)))
         results[run] = ['', '']
-        try: 
-            driver.window_handles
-        except:
-            raise RuntimeError('Cannot call window handles. Browser may have been closed manually. Abort')
-            raise
- 
+
         try:
-            runStart, runEnd = sl.findRunTime(run, driver, timeout)
-        except Exception as e:
+            runStart, runEnd = sl.findRunTime(run, driver, timeout, pc)
+        except ValueError as e:
             results[run] = [str(e)]*3
             junkID.append(run)
         else:
             result, summary = sl.getEntriesAndSummary(driver, runStart, runEnd, timedelta(hours=10),
                                                       timedelta(minutes=30), timedelta(minutes=30), 
-                                                      timeout, timeStep, dp)
+                                                      timeout, dp, pc)
             messageDetail = sl.printDict(result, runStart, runEnd, run)
             selectedMessage = selectRun(result, run)
             messageBrief = ('\n' + '-' * 50 + '\n' + '-'*50 + '\n').join([content for _, content in selectedMessage.items()])
@@ -91,28 +87,14 @@ def printBriefDict(result):
 
 
 
-def main(input, output, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, jsonInput=None, **kwargs):
+def main(input, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, **kwargs):
     print('Reading bad run list from text file %s' % input)
     runId, reasons = getRunIdFromFile(input)
-
-    if jsonInput is not None:
-        print('Reading json file %s' % input)
-        print('Will not write any json output')
-        with open(jsonInput) as f:
-            result = json.load(f)
-        junkID = []
-        for id, (contentB, contentD, _) in result.items():
-            if contentB and contentB == contentD:
-                junkID.append(id)
-        assert runId == list(result.keys()), "Run ID from input and json file do not agree. Make sure you have the right file. Otherwise download everything from shift log from scratch."
-    else:
-        if username is None or password is None:
-            username, password = login()
-        result, driver, junkID = getShiftLogDetailed(runId, timeStep, username=username, password=password, **kwargs)
-        driver.quit()
-        print('Saving shiftLog to %s' % output)
-    with open(output, 'w') as f:
-        json.dump(result, f)
+    if username is None or password is None:
+        username, password = login()
+    pc = PageCache(timeStep)
+    result, driver, junkID = getShiftLogDetailed(runId, pc, username=username, password=password, **kwargs)
+    driver.quit()
     if allOutput is not None:
         print('Saving human-readable shiftLog to %s' % allOutput)
         with open(allOutput, 'w') as f:
@@ -154,8 +136,7 @@ if __name__ == '__main__':
     printBanner()
     parser = argparse.ArgumentParser(description='Robot that fetch shiftLog online')
     parser.add_argument('-i', '--input', required=True, help='Text file with all the bad runs from QA script')
-    parser.add_argument('-ji', '--jsonInput', help='Json file of shiftLog. If json file is provided, It will not load shiftLog online.')
-    parser.add_argument('-o', '--output', required=True, help='Name of the json file to which ALL runlog are stored. Will be disabled if -ji is provided.')
+    parser.add_argument('-o', '--output', help='Deprecated. All output are saved automatically in runLog/HTML. Will ignore this option')
     parser.add_argument('-br', '--badrun', required=True, help='Name of the text file of all the bad runs')
     parser.add_argument('-t', '--timeStep', type=float, default=0.5, help='Refresh interval to fetch run-log. Cannot be too short to avoid DDoS.')
     parser.add_argument('-ao', '--allOutput', help='Name of the human readible file to which all run are stored.')
@@ -172,8 +153,10 @@ if __name__ == '__main__':
 
 
     args = parser.parse_args()
-    main(args.input, args.output, args.timeStep, args.allOutput, 
+    if args.output is not None:
+        raise DeprecationWarning('The flag -o is not used anymore because all loaded pages are cached automatically now. Run again with no -o option.')
+    main(args.input, args.timeStep, args.allOutput,
          args.badrun, args.posOutput, args.negOutput, args.useAI, 
          threshold=args.threshold, username=args.username, password=args.password, 
-         firefox=args.useFirefox, timeout=args.timeout, jsonInput=args.jsonInput)
+         firefox=args.useFirefox, timeout=args.timeout)
     print('*' * 100)

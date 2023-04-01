@@ -29,7 +29,7 @@ def autoLogin(driver, username, password, timeout):
     keyboard.release(Key.enter)
     print('*' * 100)
     WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('ShiftLog'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
-    if 'Unauthorize' in driver.title.lower():
+    if 'unauthorize' in driver.title.lower():
         raise RuntimeError('Incorrect password or username')
 
 def getDriver(firefox, timeout, username=None, password=None):

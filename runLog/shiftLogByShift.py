@@ -16,27 +16,20 @@ import os
 import sentiment as sen
 import UI
 import browser
+from pageCache import PageCache
 #from shiftLog import autoLogin
 
-def findRunTime(runID, driver, timeout):
+def findRunTime(runID, driver, timeout, pc):
     year = int(runID[:2]) - 1
     url = 'https://online.star.bnl.gov/RunLogRun%d/index.php?r=%s' % (year, runID)
-    try:
-        driver.get(url)
-        WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('STAR RunLog Browser'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
-    except:
-        raise RuntimeError('Connection time out for run %s' % runID)
- 
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    if 'error' in soup.title.get_text().lower() or 'unauthorize' in soup.title.get_text().lower():
-        raise RuntimeError('Cannot load shift log for run %s' % runID)
+    soup = BeautifulSoup(pc.getUrl(url, driver, timeout, 'STAR RunLog Browser'), "html.parser")
    
     # see if it's mark as junk by shift Leader
     # should NOT have been produced in the first place
     # but it does happen
     spans = soup.find_all('span', 'cr')
     if len(spans) > 0 and 'Marked as Junk' in spans[0].text:
-        raise RuntimeError('Shift leader marked the run %s as junk' % runID)
+        raise ValueError('Shift leader marked the run %s as junk' % runID)
     spans = soup.find_all('span', 'cg')
     startTime = spans[0].text # first span should be RTS Start Time
     startDateTime = parser.parse(startTime.lstrip('[').rstrip(']'))
@@ -78,58 +71,45 @@ def parseContent(cell):
 
 
 
-def getAllEntriesOnDate(driver, date, timeout):
+def getAllEntriesOnDate(driver, date, timeout, pc):
     url = "https://online.star.bnl.gov/apps/shiftLog%d/logForPeriod.jsp?startDate=%d/%d/%d&endDate=%d/%d/%d&B1=Submit" % (date.year, date.month, date.day, date.year, date.month, date.day, date.year)
-    try:
-        driver.get(url)
-        WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('ShiftLog'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
-    except:
-        print('Connection time out for %s' % date.strftime('%Y-%m-%d %H:%M:%S %Z'))
-        return {}
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    if 'error' in soup.title.get_text().lower() or 'unauthorize' in soup.title.get_text().lower():
-        print('Cannot load shift log for %s' % date.strftime('%Y-%m-%d %H:%M:%S %Z'))
-        return {}
-    tables = soup.findAll('table')
     entries = {}
-    try:
-        for table  in tables:
-            timestamp = date
-            rows = table.find_all('tr')
-            prevstamp = None
-            oneSec = timedelta(seconds=1)
-            for row in rows:
-                # Find all cells in the row
-                cells = row.find_all("td")#[-1]
+    
+    soup = BeautifulSoup(pc.getUrl(url, driver, timeout, 'ShiftLog'), "html.parser")
+    tables = soup.findAll('table')
+    for table  in tables:
+        timestamp = date
+        rows = table.find_all('tr')
+        prevstamp = None
+        oneSec = timedelta(seconds=1)
+        for row in rows:
+            # Find all cells in the row
+            cells = row.find_all("td")#[-1]
 
-                # there should be a time and content column
-                if len(cells) != 2:
+            # there should be a time and content column
+            if len(cells) != 2:
+                continue
+
+            # get time
+            word = cells[0].get_text(strip=True)
+            timeString = word[:5]
+            minHr = datetime.strptime(timeString, '%H:%M')
+            timestamp = timestamp.replace(hour=minHr.hour, minute=minHr.minute, second=0)
+
+            # there could be multiple messages in a minutes
+            if prevstamp == timestamp:
+                timestamp = prevstamp + oneSec
+                if prevstamp.minute != timestamp.minute:
+                    warnings.warn('What is this? There are more than 60 entries at time %s. Who wrote this? I am ignoring 61th and beyon entries created in this minute.' % prevstamp.strftime('%B %d, %Y %H:%M'))
                     continue
+            prevstamp = timestamp
 
-                # get time
-                word = cells[0].get_text(strip=True)
-                timeString = word[:5]
-                minHr = datetime.strptime(timeString, '%H:%M')
-                timestamp = timestamp.replace(hour=minHr.hour, minute=minHr.minute, second=0)
-
-                # there could be multiple messages in a minutes
-                if prevstamp == timestamp:
-                    timestamp = prevstamp + oneSec
-                    if prevstamp.minute != timestamp.minute:
-                        warnings.warn('What is this? There are more than 60 entries at time %s. Who wrote this? I am ignoring 61th and beyon entries created in this minute.' % prevstamp.strftime('%B %d, %Y %H:%M'))
-                        continue
-                prevstamp = timestamp
-
-                # save content
-                entries[timestamp] = parseContent(cells[1])
-
-    except Exception:
-        traceback.print_exc()
-        return {}
+            # save content
+            entries[timestamp] = parseContent(cells[1])
 
     return entries
  
-def getEntriesInRange(driver, start, end, timeout, timeSep, dp):
+def getEntriesInRange(driver, start, end, timeout, dp, pc):
     beginTime = start
     currTime = beginTime.replace(hour=0, minute=0, second=0)
     oneDay = timedelta(days=1)
@@ -139,20 +119,19 @@ def getEntriesInRange(driver, start, end, timeout, timeSep, dp):
         if currTime in dp:
             res = dp[currTime]
         else:
-            res = getAllEntriesOnDate(driver, currTime, timeout)
+            res = getAllEntriesOnDate(driver, currTime, timeout, pc)
             dp[currTime] = res
         for dt, content in res.items():
             if start <= dt and dt <= end:
                 results[dt] = content
         currTime += oneDay
-        time.sleep(timeSep)
     return results
 
 def getEntriesAndSummary(driver, start, end, searchWindows, 
-                         deltaBefore, deltaAfter, timeout, timeSep, dp):
+                         deltaBefore, deltaAfter, timeout, dp, pc):
     summaryResult = None
     results = getEntriesInRange(driver, start - deltaBefore,  
-                                max(end + deltaAfter, start + searchWindows), timeout, timeSep, dp)
+                                max(end + deltaAfter, start + searchWindows), timeout, dp, pc)
     finalResults = {}
     # search for summary before current datetime
     for currTime, content in results.items():
