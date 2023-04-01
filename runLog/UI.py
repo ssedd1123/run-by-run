@@ -148,12 +148,12 @@ RightArrow    = Button("", handler=right_clicked, width=10, left_symbol='', righ
 
 
 text_area = TextArea(focusable=False, scrollbar=True)
-text_area_box = Box(body=Frame(text_area), padding=0, style='class:right-pane', height=Dimension(max=100))
+text_area_box = Box(body=Frame(text_area), padding=0, style='class:right-pane')
 
-text_label = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(preferred=1))
+text_label = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(max=1))
 text_label.text = INTROTEXT
 
-text_reason = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(preferred=1))
+text_reason = TextArea(focusable=False, scrollbar=False, style='class:label', height=Dimension(max=1))
 text_content_type = TextArea(focusable=False, scrollbar=False, height=Dimension(preferred=1))
 
 entry_sentement_label = TextArea(focusable=False, width=25)
@@ -205,14 +205,12 @@ root_container = Box(
                                      Box(body=summary_sentement_label, style=get_summary_style, height=1)], padding=1, width=25),
                         padding=1,
                         style="class:left-pane",
-                        height=Dimension(preferred=55),
                     ),
                     HSplit([Box(body=VSplit([LeftArrow, Box(body=text_content_type, style='class:right-pane', width=Dimension(preferred=55)), RightArrow]), style='class:right-pane', height=1, padding=0),
                             text_area_box], padding=0)
-                ]
+                ], height=Dimension(preferred=70)
             ),
-        ], width=Dimension(preferred=110),
-        height=Dimension(preferred=57),
+        ], 
     ),
 )
 
