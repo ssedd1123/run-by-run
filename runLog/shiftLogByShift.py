@@ -142,7 +142,9 @@ def getEntriesAndSummary(driver, start, end, searchWindows,
                 summaryResult = (currTime, content)
     return finalResults, summaryResult
 
-def printDict(result, runStart=None, runEnd=None, runID='0'):
+def printDict(runID, result):
+    runStart = result.runStart
+    runEnd = result.runEnd
     x = PrettyTable()
     x.hrules=ALL
     x.field_names = ['Time', 'Content']
@@ -150,7 +152,7 @@ def printDict(result, runStart=None, runEnd=None, runID='0'):
     # reverse chronological order
     insertedStart = False
     insertedEnd = False
-    for time, content in sorted(list(result.items()), key=lambda x:x[0]):#, reverse=True):
+    for time, content in result.history.items():
         if runStart is not None and not insertedStart and time > runStart:
             insertedStart = True
             x.add_row([runStart.strftime('%H:%M'), 'RUN' + runID + 'START' + '8'*(70 - 8 - len(runID) if 70 - 8 - len(runID) > 0 else 1)])

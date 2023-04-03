@@ -18,7 +18,8 @@ def autoLogin(driver, username, password, timeout):
     # login with shiftLog2019 home page
     # once you have the login session, you are all set
     # if this url fails, replace with any other shift log page
-    url = 'https://online.star.bnl.gov/apps/shiftLog2021/logForFullTextSearch.jsp?text=22031042'
+    #url = 'https://online.star.bnl.gov/apps/shiftLog2021/logForFullTextSearch.jsp?text=22031042'
+    url = 'https://online.star.bnl.gov/RunLogRun21/index.php?r=22031042'
 
     driver.get(url)
     keyboard.type(username)
@@ -28,7 +29,7 @@ def autoLogin(driver, username, password, timeout):
     keyboard.press(Key.enter)
     keyboard.release(Key.enter)
     print('*' * 100)
-    WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('ShiftLog'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
+    WebDriverWait(driver, timeout).until(EC.any_of(EC.title_is('STAR RunLog Browser'), EC.title_contains('Error'), EC.title_contains('error'), EC.title_contains('Unauthorize')))
     if 'unauthorize' in driver.title.lower():
         raise RuntimeError('Incorrect password or username')
 

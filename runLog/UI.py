@@ -9,6 +9,8 @@ from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.key_binding.bindings.page_navigation import scroll_one_line_up, scroll_one_line_down
 from enum import Enum
 
+import shiftLogByShift as sl
+
 TEXT = Enum('TEXT', 'BRIEF HISTORY SUMMARY', start=0)
 STATUS = Enum('STATUS', 'GOOD BAD NOTSELECTED', start=0)
 
@@ -327,7 +329,13 @@ def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=
                 SUMMARYHIGHLIGHT.append(True)
             else:
                 SUMMARYHIGHLIGHT.append(False)
-        RESULT[key] = content
+        brief = ('\n' + '-' * 50 + '\n' + '-'*50 + '\n').join([entry for _, entry in content.message.items()])
+        if content.summary is None:
+            summary = detailed = brief
+        else:
+            detailed = sl.printDict(key, content)
+            summary = content.summary
+        RESULT[key] = [brief, detailed, summary]
         REASONS.append(reasons[key])
         IDSTATUS.append(STATUS.NOTSELECTED)
 

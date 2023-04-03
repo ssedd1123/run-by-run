@@ -44,18 +44,25 @@ def sentimentNLTK(result, **kwargs):
     negHistory = []
     negSummary = []
     for runId, content in result.items():
-        scores = sia.polarity_scores(preprocess_text(content[0]))
+        scores = sia.polarity_scores(preprocess_text(' '.join([line for _, line in content.message.items()])))
         if scores['neg'] > 0:
             negRuns.append(runId)
-        splited = content[1].split('RUN' + runId + 'START')
-        if len(splited) == 2:
-            scores = sia.polarity_scores(preprocess_text(splited[1].lstrip('8')))
+
+        if content.history is None:
+            scores = {'neg': 1}
         else:
-            scores = {'neg': -1}
-        #scores = sia.polarity_scores(preprocess_text(content[2].split('run number | status | nEvents |')[0]))
+            runStart = content.runStart
+            history = ('\n').join([entry for time, entry in content.history.items() if time > runStart and not entry.startswith('Summary Report')])
+            scores = sia.polarity_scores(preprocess_text(history))
         if scores['neg'] > 0:
             negHistory.append(runId)
-        scores = sia.polarity_scores(preprocess_text(content[2]))
+
+        if content.summary is None:
+            scores = {'neg': 1}
+        else:
+            txts = content.summary.split('run number | status')
+            txts = txts[0] # if the run number doesn't exist, we just use the entire thing
+            scores = sia.polarity_scores(preprocess_text(txts))
         if scores['neg'] > 0:
             negSummary.append(runId)
     return negRuns, negHistory, negSummary

@@ -14,10 +14,13 @@ import os
 from datetime import datetime, timedelta
 from prettytable import PrettyTable, ALL
 import getpass
+from collections import namedtuple
 
 import shiftLogByShift as sl
 import browser 
 from pageCache import PageCache
+
+RunInfo = namedtuple('RunInfo', 'message history summary runStart runEnd')
 
 def login():
     username = input('Enter shift log username: ')
@@ -61,18 +64,17 @@ def getShiftLogDetailed(runs, pc, username=None, password=None, firefox=False, t
         try:
             runStart, runEnd = sl.findRunTime(run, driver, timeout, pc)
         except ValueError as e:
-            results[run] = [str(e)]*3
+            results[run] = RunInfo({runStart: str(e)}, None, None, runStart, runEnd)
             junkID.append(run)
         else:
             result, summary = sl.getEntriesAndSummary(driver, runStart, runEnd, timedelta(hours=10),
                                                       timedelta(minutes=30), timedelta(minutes=30), 
                                                       timeout, dp, pc)
-            messageDetail = sl.printDict(result, runStart, runEnd, run)
             selectedMessage = selectRun(result, run)
-            messageBrief = ('\n' + '-' * 50 + '\n' + '-'*50 + '\n').join([content for _, content in selectedMessage.items()])
             if summary is None:
                 summary = 'Summary not found'
-            results[run] = [messageBrief, messageDetail, summary[1]]
+            results[run] = RunInfo(selectedMessage, result, 
+                                   summary[1], runStart, runEnd)
     return results, driver, junkID
 
 def printBriefDict(result):
@@ -81,7 +83,8 @@ def printBriefDict(result):
     x.field_names = ['RunID', 'Content']
     x._max_width = {'RunID' : 10, 'Content': 70}
     for runId, content in result.items():
-        x.add_row([runId, content[0]])
+        brief = ('\n' + '-' * 50 + '\n' + '-'*50 + '\n').join([entry for _, entry in content.message.items()])
+        x.add_row([runId, brief])
     x.align['Content'] = 'l'
     return x.get_string()
 
