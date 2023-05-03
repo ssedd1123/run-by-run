@@ -114,7 +114,7 @@ def plotOutlier(ax, fig, runs, values, uncert,
     elif not showPseudoID:
         import matplotlib.ticker as ticker
         fig.canvas.draw()
-        xLabelID = [int(item.get_text()) for item in ax.get_xticklabels()]
+        xLabelID = [int(float(item.get_text())+0.5) for item in ax.get_xticklabels()]
         ax.xaxis.set_major_locator(ticker.FixedLocator(xLabelID)) # can't zoom in due to limitations of matplotlib
         xLabel = [str(runs[id]) if id < runs.shape[0] else id for id in xLabelID]
         ax.set_xticklabels(xLabel, rotation=30, ha='right')
