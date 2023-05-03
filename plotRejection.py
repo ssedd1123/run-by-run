@@ -126,7 +126,7 @@ def appendRunInfo(ax, fig, ele, energy):
     ax.text(0.15, 0.9, '%s $\sqrt{s_{NN}}$ = %s GeV' % (ele, energy), transform=fig.transFigure)
     ax.legend(bbox_to_anchor=(0.35, 1.0), loc='lower left', ncol=4, frameon=False, columnspacing=0.01, borderpad=0, handletextpad=0.1) 
 
-def main(runs, globalMean, globalStd, secMean, secStd,
+def main(runs, secMean, secStd,
          x, xerr, runsRejected, reasonsRejected, 
          varNames, counts, edgeRuns, 
          allRunID, plotRange, rejectionRange, pseudoID, 
@@ -135,11 +135,11 @@ def main(runs, globalMean, globalStd, secMean, secStd,
     print('Plot QA result.')
     if counts is None:
         counts = np.array([None]*x.shape[1])
-    for xcol, errcol, highlight, mcol, stdcol, mglobal, stdglobal, ytitle, coun in zip(x.T, xerr.T, reasonsRejected.T, secMean.T, secStd.T, globalMean, globalStd, varNames, counts.T):
+    for xcol, errcol, highlight, mcol, stdcol, ytitle, coun in zip(x.T, xerr.T, reasonsRejected.T, secMean.T, secStd.T, varNames, counts.T):
         fig, ax = plt.subplots(figsize=(15, 5))
-        statSummary = plotOutlier(ax, fig, runs, xcol*stdglobal + mglobal, #convert normalized values to real values 
-                                   errcol*stdglobal, runsRejected, edgeRuns, highlight, 
-                                   mcol*stdglobal + mglobal, stdcol*stdglobal, ytitle, allRunID,
+        statSummary = plotOutlier(ax, fig, runs, xcol, #convert normalized values to real values 
+                                   errcol, runsRejected, edgeRuns, highlight, 
+                                   mcol, stdcol, ytitle, allRunID,
                                    plotRange, rejectionRange, pseudoID, 
                                    showEdgeRuns, spreadName, coun)
         appendRunInfo(ax, fig, element, sNN)
@@ -153,7 +153,7 @@ def main(runs, globalMean, globalStd, secMean, secStd,
     if plotGood:
         print('Plot QA result wight Just good runs.')
         idRejected = np.searchsorted(runs, runsRejected)
-        main(np.delete(runs, idRejected), globalMean, globalStd, secMean, secStd,
+        main(np.delete(runs, idRejected), secMean, secStd,
              np.delete(x, idRejected, axis=0), np.delete(xerr, idRejected, axis=0), 
              [], reasonsRejected, 
              varNames, None, edgeRuns,
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     else:
         print('Those are the names of TProfiles in %s' % args.varNames)
     print('*'*100)
-    runs, x, xerr, x_mean, x_std, counts = readFromROOT(args.input, varNames, args.mapping)
+    runs, x, xerr, counts = readFromROOT(args.input, varNames, args.mapping)
 
     runsRejected = []
     reasonsRejected = []
@@ -213,7 +213,7 @@ if __name__ == '__main__':
 
     reasonsRejected = np.array(reasonsRejected)
     print('Plotting result')
-    main(runs, x_mean, x_std, np.atleast_2d(np.average(x, axis=0)), np.atleast_2d(np.std(x, axis=0)),
+    main(runs, np.atleast_2d(np.average(x, axis=0)), np.atleast_2d(np.std(x, axis=0)),
          x, xerr, runsRejected, reasonsRejected, 
          varNames, counts, [], 
          args.allRunID, args.plotRange, 5, args.pseudoID,
