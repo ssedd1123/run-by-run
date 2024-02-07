@@ -11,3 +11,14 @@ Run `python3 shiftLog.py -i badrun.list -br newBadrun.list`
 When download is completed, an interactive interface appears where you can select if a run is good or bad. The final selected list will be saved to newBadrun.list. The corresponding shift logs will be saved to newBadrun.txt
 
 All downloaded run entries will be cached locally. It will not download retrieved entries to reduce network load.
+
+## Use firefox
+
+If you do not have Chrome, you can add `--useFirefox` to your argument, i.e.
+
+`python3 shiftLog.py -i badrun.list -br newBadrun.list --useFirefox`
+
+## Other questions.
+
+You can see all options with `-h` argument.
+
