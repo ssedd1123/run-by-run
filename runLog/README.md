@@ -10,7 +10,7 @@ Let say you have a list of bad run from run-by-run QA code named `badrun.list`.
 
 Run `python3 shiftLog.py -i badrun.list -br newBadrun.list`
 
-When download is completed, an interactive interface appears where you can select if a run is good or bad. The final selected list will be saved to newBadrun.list. The corresponding shift logs will be saved to newBadrun.txt
+When download is completed, an interactive interface appears where you can select if a run is good or bad. The final selected list will be saved to newBadrun.list. 
 
 All downloaded run entries will be cached locally. It will not download retrieved entries to reduce network load.
 
