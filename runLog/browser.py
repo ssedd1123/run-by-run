@@ -3,6 +3,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 import time
 from pynput.keyboard import Key, Controller
+import chromedriver_autoinstaller
 
 def autoLogin(driver, username, password, timeout):
     """
@@ -37,6 +38,7 @@ def getDriver(firefox, timeout, username=None, password=None):
     if firefox:
         driver = webdriver.Firefox()
     else:
+        chromedriver_autoinstaller.install()
         driver = webdriver.Chrome()
     driver.set_page_load_timeout(timeout)
     if username is not None and password is not None: 
