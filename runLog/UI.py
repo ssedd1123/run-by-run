@@ -28,12 +28,15 @@ INTROTEXT = "Control with (up, down, left, right), Pg Up, Pg Down and Enter keys
 REASONS = None # Reason for each run to be here. Should be list of string
 RUNMEMO = None # text
 
+memo_area = TextArea(prompt='Run memo>>>', text='Anything written here will be saved in the selected bad run list.', multiline=True, wrap_lines=True, focusable=True, style='class:input-field')
+
 def on_change(prev_id):
-    global RUNMEMO
+    global RUNMEMO, memo_area
     GoBackButton.text = 'Go Back'
     ExitButton.text = 'Exit %d/%d' % (CURRID+1, len(KEYS))
-    RUNMEMO[prev_id] = memo_area.text
-    if CURRID < len(KEYS):
+    if prev_id >= 0:
+        RUNMEMO[prev_id] = memo_area.text
+    if CURRID < len(RUNMEMO):
         memo_area.text = RUNMEMO[CURRID]
         text_reason.text = 'Current run = %s for reason %s' % (KEYS[CURRID], REASONS[CURRID])
         if SUMMARYHIGHLIGHT is None:
@@ -193,7 +196,6 @@ def get_summary_style() -> str:
             return 'class:indicator-bad'
     return 'class:indicator-good'
 
-memo_area = TextArea(prompt='Run memo>>>', text='Anthing written here will be saved in the selected bad run list.', multiline=True, wrap_lines=True, focusable=True, style='class:input-field')
 
 
 # Combine all the widgets in a UI.
@@ -313,7 +315,7 @@ style = Style(
 application = Application(layout=layout, key_bindings=kb, style=style, full_screen=True, mouse_support=True)
 
 
-def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=''):
+def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro='', defaultNotes=None, skipUI=False):
     global RESULT, IDSTATUS, CURRID, KEYS, TEXTTYPE, HIGHLIGHT, REASONS, SUMMARYHIGHLIGHT, HISTORYHIGHLIGHT, RUNMEMO
     # remove empty entry
     KEYS = []
@@ -344,7 +346,13 @@ def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=
 
     for key, content in result.items():
         KEYS.append(key)
-        RUNMEMO.append('')
+        if defaultNotes is None:
+            RUNMEMO.append('')
+        else:
+            if key in defaultNotes:
+                RUNMEMO.append(defaultNotes[key])
+            else:
+                RUNMEMO.append('')
         if badKeys is not None:
             if key in badKeys:
                 HIGHLIGHT.append(True)
@@ -372,7 +380,14 @@ def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=
 
     CURRID = -1
     text_area.text = intro
-    application.run()
+    if skipUI:
+        for i, (key, content) in enumerate(result.items()):
+            if badKeys is not None and key in badKeys:
+                IDSTATUS[i] = STATUS.BAD
+            else:
+                IDSTATUS[i] = STATUS.GOOD
+    else:
+        application.run()
     pos = {}
     neg = {}
     memo = {}

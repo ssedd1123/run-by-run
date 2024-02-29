@@ -19,8 +19,8 @@ import browser
 from pageCache import PageCache
 #from shiftLog import autoLogin
 
-def findRunTime(runID, driver, timeout, pc):
-    year = int(runID[:2]) - 1
+def findRunTime(runID, runYR, driver, timeout, pc):
+    year = runYR #int(runID[:2]) #- 1
     url = 'https://online.star.bnl.gov/RunLogRun%d/index.php?r=%s' % (year, runID)
     soup = BeautifulSoup(pc.getUrl(url, driver, timeout, 'STAR RunLog Browser'), "html.parser")
    
@@ -71,8 +71,9 @@ def parseContent(cell):
 
 
 
-def getAllEntriesOnDate(driver, date, timeout, pc):
-    url = "https://online.star.bnl.gov/apps/shiftLog%d/logForPeriod.jsp?startDate=%d/%d/%d&endDate=%d/%d/%d&B1=Submit" % (date.year, date.month, date.day, date.year, date.month, date.day, date.year)
+def getAllEntriesOnDate(driver, runYR, date, timeout, pc):
+    url = "https://online.star.bnl.gov/apps/shiftLog20%d/logForPeriod.jsp?startDate=%d/%d/%d&endDate=%d/%d/%d&B1=Submit" % (runYR, date.month, date.day, date.year, date.month, date.day, date.year)
+    print(url, flush=True)
     entries = {}
     
     soup = BeautifulSoup(pc.getUrl(url, driver, timeout, 'ShiftLog'), "html.parser")
@@ -109,7 +110,7 @@ def getAllEntriesOnDate(driver, date, timeout, pc):
 
     return entries
  
-def getEntriesInRange(driver, start, end, timeout, dp, pc):
+def getEntriesInRange(driver, runYR, start, end, timeout, dp, pc):
     beginTime = start
     currTime = beginTime.replace(hour=0, minute=0, second=0)
     oneDay = timedelta(days=1)
@@ -119,7 +120,7 @@ def getEntriesInRange(driver, start, end, timeout, dp, pc):
         if currTime in dp:
             res = dp[currTime]
         else:
-            res = getAllEntriesOnDate(driver, currTime, timeout, pc)
+            res = getAllEntriesOnDate(driver, runYR, currTime, timeout, pc)
             dp[currTime] = res
         for dt, content in res.items():
             if start <= dt and dt <= end:
@@ -127,10 +128,10 @@ def getEntriesInRange(driver, start, end, timeout, dp, pc):
         currTime += oneDay
     return results
 
-def getEntriesAndSummary(driver, start, end, searchWindows, 
+def getEntriesAndSummary(driver, runYR, start, end, searchWindows, 
                          deltaBefore, deltaAfter, timeout, dp, pc):
     summaryResult = None
-    results = getEntriesInRange(driver, start - deltaBefore,  
+    results = getEntriesInRange(driver, runYR, start - deltaBefore,  
                                 max(end + deltaAfter, start + searchWindows), timeout, dp, pc)
     finalResults = {}
     # search for summary before current datetime
