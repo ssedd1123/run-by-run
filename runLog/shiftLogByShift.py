@@ -12,6 +12,7 @@ import pytz
 from datetime import datetime, timedelta
 from prettytable import PrettyTable, ALL
 import os
+from urllib.parse import quote
 
 import sentiment as sen
 import UI
@@ -19,9 +20,9 @@ import browser
 from pageCache import PageCache
 #from shiftLog import autoLogin
 
-def findRunTime(runID, runYR, driver, timeout, pc):
+def findRunTime(runID, runYR, driver, timeout, pc, username, password):
     year = runYR #int(runID[:2]) #- 1
-    url = 'https://online.star.bnl.gov/RunLogRun%d/index.php?r=%s' % (year, runID)
+    url = 'https://%s:%s@online.star.bnl.gov/RunLogRun%d/index.php?r=%s' % (quote(username), quote(password), year, runID)
     soup = BeautifulSoup(pc.getUrl(url, driver, timeout, 'STAR RunLog Browser'), "html.parser")
    
     # see if it's mark as junk by shift Leader
@@ -71,9 +72,8 @@ def parseContent(cell):
 
 
 
-def getAllEntriesOnDate(driver, runYR, date, timeout, pc):
-    url = "https://online.star.bnl.gov/apps/shiftLog20%d/logForPeriod.jsp?startDate=%d/%d/%d&endDate=%d/%d/%d&B1=Submit" % (runYR, date.month, date.day, date.year, date.month, date.day, date.year)
-    print(url, flush=True)
+def getAllEntriesOnDate(driver, runYR, date, timeout, pc, username, password):
+    url = "https://%s:%s@online.star.bnl.gov/apps/shiftLog20%d/logForPeriod.jsp?startDate=%d/%d/%d&endDate=%d/%d/%d&B1=Submit" % (quote(username), quote(password), runYR, date.month, date.day, date.year, date.month, date.day, date.year)
     entries = {}
     
     soup = BeautifulSoup(pc.getUrl(url, driver, timeout, 'ShiftLog'), "html.parser")
@@ -101,7 +101,7 @@ def getAllEntriesOnDate(driver, runYR, date, timeout, pc):
             if prevstamp == timestamp:
                 timestamp = prevstamp + oneSec
                 if prevstamp.minute != timestamp.minute:
-                    warnings.warn('What is this? There are more than 60 entries at time %s. Who wrote this? I am ignoring 61th and beyon entries created in this minute.' % prevstamp.strftime('%B %d, %Y %H:%M'))
+                    warnings.warn('What is this? There are more than 60 entries within 1 minute at time %s. Who wrote this? I am ignoring 61th and beyond entries created in this minute.' % prevstamp.strftime('%B %d, %Y %H:%M'))
                     continue
             prevstamp = timestamp
 
@@ -110,29 +110,31 @@ def getAllEntriesOnDate(driver, runYR, date, timeout, pc):
 
     return entries
  
-def getEntriesInRange(driver, runYR, start, end, timeout, dp, pc):
+def getEntriesInRange(driver, runYR, start, end, timeout, dp, pc, username, password):
     beginTime = start
-    currTime = beginTime.replace(hour=0, minute=0, second=0)
+    currDate = beginTime.replace(hour=0, minute=0, second=0)
     oneDay = timedelta(days=1)
     results = {}
-    while currTime <= end:
+    while currDate <= end:
         # reduce wepage loading by dynamic programing
-        if currTime in dp:
-            res = dp[currTime]
+        if currDate in dp:
+            res = dp[currDate]
         else:
-            res = getAllEntriesOnDate(driver, runYR, currTime, timeout, pc)
-            dp[currTime] = res
+            res = getAllEntriesOnDate(driver, runYR, currDate, timeout, pc, username, password)
+            dp[currDate] = res
         for dt, content in res.items():
             if start <= dt and dt <= end:
                 results[dt] = content
-        currTime += oneDay
+        currDate += oneDay
     return results
 
 def getEntriesAndSummary(driver, runYR, start, end, searchWindows, 
-                         deltaBefore, deltaAfter, timeout, dp, pc):
+                         deltaBefore, deltaAfter, timeout, dp, pc, 
+                         username, password):
     summaryResult = None
     results = getEntriesInRange(driver, runYR, start - deltaBefore,  
-                                max(end + deltaAfter, start + searchWindows), timeout, dp, pc)
+                                max(end + deltaAfter, start + searchWindows), timeout, dp, pc,
+                                username, password)
     finalResults = {}
     # search for summary before current datetime
     for currTime, content in results.items():

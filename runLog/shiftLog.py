@@ -14,10 +14,12 @@ import os
 from datetime import datetime, timedelta
 from prettytable import PrettyTable, ALL
 import getpass
-from collections import namedtuple
+from collections import namedtuple, defaultdict
+import re
+from tqdm import tqdm
 
 import shiftLogByShift as sl
-import browser 
+#import browser 
 from pageCache import PageCache
 
 RunInfo = namedtuple('RunInfo', 'message history summary runStart runEnd')
@@ -43,39 +45,61 @@ def getRunIdFromFile(filename):
                 reasons[id_] = 'None provided'
     return runId, reasons
 
-def selectRun(results, runID):
-    relevant = {}
-    for dt, content in results.items():
-        if content.startswith('Run ' + runID):
-            relevant[dt] = content
-    return relevant
+def selectRun(results, runID, dp):
+    if runID in dp:
+        return dp[runID]
 
-def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=False, timeout=60, **kwargs):
+    for dt, content in results.items():
+        matches = re.findall('Run (\d+)', content)
+        if matches:
+            capturedID = matches[0]
+            dp[capturedID][dt] = content
+
+    return dp[runID]
+
+def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=False, timeout=60, ignoreEmpty=False, **kwargs):
     results = {}
     dp = {}
+    dpSelect = defaultdict(dict)
     junkID = []
-    driver = browser.getDriver(firefox, timeout, username, password)
-
-    for i, run in enumerate(runs):
-        run = str(run)
-        print('Loading history for run %s (%d/%d)' % (run, i+1, len(runs)))
-        results[run] = ['', '']
-
-        try:
-            runStart, runEnd = sl.findRunTime(run, runYR, driver, timeout, pc)
-        except ValueError as e:
-            results[run] = RunInfo({'Error': 'This is a bad run because run time cannot be fetched. Detailed error: ' + str(e)}, None, None, None, None)
-            junkID.append(run)
+    try:
+        #driver = browser.getDriver(firefox, timeout, username, password)
+        if firefox:
+            driver = webdriver.Firefox()
         else:
-            result, summary = sl.getEntriesAndSummary(driver, runYR, runStart, runEnd, timedelta(hours=10),
-                                                      timedelta(minutes=90), timedelta(minutes=90), 
-                                                      timeout, dp, pc)
-            selectedMessage = selectRun(result, run)
-            if summary is None:
-                summary = 'Summary not found'
-            results[run] = RunInfo(selectedMessage, result, 
-                                   summary[1], runStart, runEnd)
-    return results, driver, junkID
+            import chromedriver_autoinstaller
+            chromedriver_autoinstaller.install()
+            driver = webdriver.Chrome()
+
+        driver.set_page_load_timeout(timeout)
+    
+        for i, run in tqdm(enumerate(runs), desc='Loading run history', total=len(runs)):
+            run = str(run)
+            results[run] = ['', '']
+    
+            try:
+                runStart, runEnd = sl.findRunTime(run, runYR, driver, timeout, pc, username, password)
+            except ValueError as e:
+                results[run] = RunInfo({'Error': 'Run info cannot be fetched from online database. Detailed error: ' + str(e)}, None, None, None, None)
+                junkID.append(run)
+            else:
+                result, summary = sl.getEntriesAndSummary(driver, runYR, runStart, runEnd, timedelta(hours=10),
+                                                          timedelta(minutes=90), timedelta(minutes=90), 
+                                                          timeout, dp, pc, username, password)
+                selectedMessage = selectRun(result, run, dpSelect)
+                if ignoreEmpty:
+                    if not selectedMessage:
+                        del results[run]
+                        continue
+                if summary is None:
+                    summary = 'Summary not found'
+                results[run] = RunInfo(selectedMessage, result, 
+                                       summary[1], runStart, runEnd)
+    finally:
+        if driver is not None:
+            driver.quit()
+
+    return results, junkID
 
 def printBriefDict(result):
     x = PrettyTable()
@@ -90,14 +114,13 @@ def printBriefDict(result):
 
 
 
-def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, **kwargs):
+def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, **kwargs):
     print('Reading bad run list from text file %s' % input)
     runId, reasons = getRunIdFromFile(input)
-    #if username is None or password is None:
-    #    username, password = login()
+    if username is None or password is None:
+        username, password = login()
     pc = PageCache(timeStep)
-    result, driver, junkID = getShiftLogDetailed(runId, pc, runYR, username=username, password=password, **kwargs)
-    driver.quit()
+    result, junkID = getShiftLogDetailed(runId, pc, runYR, username=username, password=password, ignoreEmpty=ignoreEmpty, **kwargs)
     if allOutput is not None:
         print('Saving human-readable shiftLog to %s' % allOutput)
         with open(allOutput, 'w') as f:
@@ -107,7 +130,7 @@ def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI,
     badSummary = []
     AIReasons = {}
     if useAI:
-        badRuns, badHistory, badSummary, AIReasons = sentiment(result, useAI, threshold=threshold)
+        badRuns, badHistory, badSummary, AIReasons = sentiment(result, useAI, skip=set(junkID), threshold=threshold)
         intro = 'AI thinks that %d runLog entries out of a total of %d are bad runs.\nBackground color will turn for red for those runs that are considered bad.' % (len(badRuns), len(result))
     else:
         intro = 'There are %d runs to go through' % len(result)
@@ -135,7 +158,7 @@ def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI,
         with open(negOutput, 'w') as f:
             f.write(printBriefDict(neg))
     with open(badrun, 'w') as f:
-        f.write('\n'.join(['%s %s' % (id_, memo[id_]) for id_ in neg.keys()]))
+        f.write('\n'.join(['%s - %s' % (id_, memo[id_]) for id_ in neg.keys()]))
 
 
 def printBanner():
@@ -165,6 +188,7 @@ if __name__ == '__main__':
     parser.add_argument('--useFirefox', action='store_true', help='Switch to Firefox if desired. MAY NOT WORK WITH MANUAL CREDENTIALS.')
     parser.add_argument('-to', '--timeout', default=60, type=float, help='Longest time to wait before connection timeout (default: %(default)s)')
     parser.add_argument('-YR', '--runYR', type=int, help='Run year. e.g. 20 for Run 20, 19 for Run 19', required=True)
+    parser.add_argument('-ie', '--ignoreEmpty', action='store_true', help='If enable, runs where shift log entries are empty will be ignored and not appear in GUI or the bad run list.')
 
 
     args = parser.parse_args()
@@ -177,5 +201,5 @@ if __name__ == '__main__':
     main(args.input, args.runYR, args.timeStep, args.allOutput,
          args.badrun, args.posOutput, args.negOutput, args.useAI, 
          threshold=args.threshold, username=args.username, password=args.password, 
-         firefox=args.useFirefox, timeout=args.timeout, skipUI=skipUI)
+         firefox=args.useFirefox, timeout=args.timeout, skipUI=skipUI, ignoreEmpty=args.ignoreEmpty)
     print('*' * 100)
