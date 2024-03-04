@@ -1,5 +1,4 @@
 import warnings
-import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 import matplotlib.font_manager as font_manager
@@ -183,6 +182,13 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--mapping', help='If x-axis of TProfile does not corresponds to STAR run ID, you can supply a file that translate bin low edge to STAR ID')
 
     args = parser.parse_args()
+
+    if args.batch:
+        import matplotlib
+        matplotlib.use('Agg')
+
+    import matplotlib.pyplot as plt
+
     if args.varNames is None:
         varNames = getNamesAllTProfile(args.input)
     else:

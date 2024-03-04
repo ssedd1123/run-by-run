@@ -4,7 +4,6 @@ from outlierDetector import outlierDetector
 from plotRejection import plotOutlier, appendRunInfo
 import plotRejection as pr
 
-import matplotlib.pyplot as plt
 import argparse
 import numpy as np
 from multiprocessing.pool import Pool
@@ -147,6 +146,12 @@ if __name__ == '__main__':
 
 
     args = parser.parse_args()
+ 
+    if args.batch:
+        import matplotlib
+        matplotlib.use('Agg')
+
+    import matplotlib.pyplot as plt
     if args.JMLR:
         print('Using JMLR to determine segmentation penality. Only use 1 core')
         args.cores = 1
