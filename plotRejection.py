@@ -6,19 +6,10 @@ font_dir = ['ttf']
 for font in font_manager.findSystemFonts(font_dir):
     font_manager.fontManager.addfont(font)
 
-plt.rcParams['font.family'] = 'Helvetica'
-
 SMALL_SIZE = 18#15
 MEDIUM_SIZE = 21#18
 BIGGER_SIZE = 24#20
-
-plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
-plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
-plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
-plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+ 
 
 def plotOutlier(ax, fig, runs, values, uncert, 
                 runsRejected, edgeRuns, highlight,
@@ -188,6 +179,16 @@ if __name__ == '__main__':
         matplotlib.use('Agg')
 
     import matplotlib.pyplot as plt
+
+    plt.rcParams['font.family'] = 'Helvetica'
+       
+    plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+    plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+    plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+    plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
     if args.varNames is None:
         varNames = getNamesAllTProfile(args.input)
