@@ -68,7 +68,7 @@ def parseContent(cell):
     else:
         word = cell.get_text(strip=True, separator='\n').replace('\t', ' ')
     # remove empty line, remove consecutive line breaks, remove consecutive spaces
-    return re.sub('\n\s*\n', '\n', re.sub('\n+', '\n', re.sub(r" +", " ", word)))  
+    return re.sub('\n'r'\s*''\n', '\n', re.sub('\n+', '\n', re.sub(r" +", " ", word)))  
 
 
 

@@ -50,7 +50,7 @@ def selectRun(results, runID, dp):
         return dp[runID]
 
     for dt, content in results.items():
-        matches = re.findall('Run (\d+)', content)
+        matches = re.findall(r'Run (\d+)', content)
         if matches:
             capturedID = matches[0]
             dp[capturedID][dt] = content
