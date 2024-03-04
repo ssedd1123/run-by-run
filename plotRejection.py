@@ -123,6 +123,8 @@ def main(runs, secMean, secStd,
          showEdgeRuns, spreadName, element, sNN,
          genPDF, batch, plotGood, pdfSuffix=''):
     print('Plot QA result.')
+    import matplotlib.pyplot as plt
+
     if counts is None:
         counts = np.array([None]*x.shape[1])
     for xcol, errcol, highlight, mcol, stdcol, ytitle, coun in zip(x.T, xerr.T, reasonsRejected.T, secMean.T, secStd.T, varNames, counts.T):
