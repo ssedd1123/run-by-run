@@ -23,8 +23,10 @@ Using GPU for inference is highly recommended due to significantly faster perfor
 Assuming you have a list of problematic runs from the QA code named `badrun.list`, execute the following command:
 
 ```bash
-python3 shiftLog.py -i badrun.list -br newBadrun.list
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list
 ```
+
+Where \<Run Year\> is the last two digits of the run year. For instance, you should put `python3 shiftLog.py -YR 20 -i ...` for run number 20344002 because run number 20344002 belongs to Run 20. 
 
 Enter your username and password when prompted. The download will commence upon successful validation of your credentials.
 
@@ -37,7 +39,7 @@ All downloaded run entries will be cached locally to minimize network load durin
 If Chrome is unavailable, add the `--useFirefox` argument to your command:
 
 ```bash
-python3 shiftLog.py -i badrun.list -br newBadrun.list --useFirefox
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useFirefox
 ```
 
 ## Ask AI
@@ -51,13 +53,13 @@ To run AI, modify the "model" entry in `LLM_settings.json` to point to the gguf 
 Use the following command to create a bad run list automatically:
 
 ```bash
-python3 shiftLog.py -i badrun.list -br newBadrun.list --justAI LLM
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --justAI LLM
 ```
 
 For manual review of each AI entry, use the `--useAI` flag instead of `--justAI`:
 
 ```bash
-python3 shiftLog.py -i badrun.list -br newBadrun.list --useAI LLM
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useAI LLM
 ```
 
 ## Other Questions
@@ -65,5 +67,5 @@ python3 shiftLog.py -i badrun.list -br newBadrun.list --useAI LLM
 For a comprehensive list of options, use the `-h` argument:
 
 ```bash
-python3 shiftLog.py -h
+python3 shiftLog.py -YR <Run Year> -h
 ```
