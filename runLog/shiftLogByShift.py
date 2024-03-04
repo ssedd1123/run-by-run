@@ -16,7 +16,7 @@ from urllib.parse import quote
 
 import sentiment as sen
 import UI
-import browser
+#import browser
 from pageCache import PageCache
 #from shiftLog import autoLogin
 
@@ -73,7 +73,7 @@ def parseContent(cell):
 
 
 def getAllEntriesOnDate(driver, runYR, date, timeout, pc, username, password):
-    url = "https://%s:%s@online.star.bnl.gov/apps/shiftLog20%d/logForPeriod.jsp?startDate=%d/%d/%d&endDate=%d/%d/%d&B1=Submit" % (quote(username), quote(password), runYR, date.month, date.day, date.year, date.month, date.day, date.year)
+    url = "https://%s:%s@dean2.star.bnl.gov/apps/shiftLog20%d/logForPeriod.jsp?startDate=%d/%d/%d&endDate=%d/%d/%d&B1=Submit" % (quote(username), quote(password), runYR, date.month, date.day, date.year, date.month, date.day, date.year)
     entries = {}
     
     soup = BeautifulSoup(pc.getUrl(url, driver, timeout, 'ShiftLog'), "html.parser")
