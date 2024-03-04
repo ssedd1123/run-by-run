@@ -125,6 +125,16 @@ def main(runs, secMean, secStd,
     print('Plot QA result.')
     import matplotlib.pyplot as plt
 
+    plt.rcParams['font.family'] = 'Helvetica'
+       
+    plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+    plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+    plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+    plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
     if counts is None:
         counts = np.array([None]*x.shape[1])
     for xcol, errcol, highlight, mcol, stdcol, ytitle, coun in zip(x.T, xerr.T, reasonsRejected.T, secMean.T, secStd.T, varNames, counts.T):
@@ -179,18 +189,6 @@ if __name__ == '__main__':
     if args.batch:
         import matplotlib
         matplotlib.use('Agg')
-
-    import matplotlib.pyplot as plt
-
-    plt.rcParams['font.family'] = 'Helvetica'
-       
-    plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-    plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
-    plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
-    plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-    plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-    plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
-    plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
     if args.varNames is None:
         varNames = getNamesAllTProfile(args.input)
