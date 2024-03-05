@@ -1,8 +1,11 @@
 # Import the SentimentIntensityAnalyzer class
+from hashlib import sha256
 import json
 import argparse
 from prettytable import PrettyTable, ALL
 from tqdm import tqdm
+import json
+import os
 
 def sentiment(result, modelName='NLTK', skip=None, **kwargs):
     if modelName == 'NLTK':
@@ -14,6 +17,7 @@ def sentiment(result, modelName='NLTK', skip=None, **kwargs):
 
 
 def sentimentNLTK(result, skip, **kwargs):
+    raise RuntimeError('sentimentNLTK is deprecated')
     try:
         import nltk
         from nltk.corpus import stopwords
@@ -74,10 +78,9 @@ def sentimentNLTK(result, skip, **kwargs):
     return negRuns, negHistory, negSummary, reasons
 
 
-def sentimentLLM(result, skip, threshold=0, **kwargs):
+def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', **kwargs):
     # load settings of LLM from json
-    import json
-    with open('LLM_settings.json') as f:
+    with open(settings_json) as f:
         settings = json.load(f)
 
     from llama_cpp import Llama
@@ -85,7 +88,7 @@ def sentimentLLM(result, skip, threshold=0, **kwargs):
     #llm = Llama(model_path=r'D:\Download\text-generation-webui-main\text-generation-webui-main\models\mistral-7b-instruct-v0.2.Q5_K_M.gguf', n_gpu_layers=512, n_ctx=512, verbose=False)
     llm = Llama(model_path=settings['model'], n_gpu_layers=settings['n_gpu_layers'], n_ctx=settings['n_ctx'], verbose=settings['verbose'])
 
-    def askLLMIsRunGood(runID, content, descriptionOfBadRuns):
+    def askLLMIsRunGood(runID, content):
         # ask LLM to give explicit result
         # look for the following phrase
         badrunKW = 'BAD BAD BAD'
@@ -95,7 +98,7 @@ def sentimentLLM(result, skip, threshold=0, **kwargs):
                 {"role": "system", "content": "You are an assistant who help users identify bad runs from runLog."},
                 {
                     "role": "user",
-                    "content": "This is the run log of run  %s\n%s\n%s. %s\n " % (runID, content, descriptionOfBadRuns, settings['additionalPrompt']) +
+                    "content": "This is the run log of run  %s\n%s\n%s. %s\n " % (runID, content, settings['badRunDescription'], settings['additionalPrompt']) +
                                "If it is a bad run, say explicitly the phrase '%s'. If it is not a bad run, say explicitly the phrase '%s'." % (badrunKW, goodrunKW)
                 }
             ]
@@ -111,7 +114,7 @@ def sentimentLLM(result, skip, threshold=0, **kwargs):
 
         # if LLM fails to follow direction, we will prompt it repeatedly until it gives us the answer, or if we run out of time and declare the run bad
         messages.append({"role": "system", "content": reason})
-        messages.append({'role': 'user', 'content': "If it is a bad run, say explicitly the phrase '%s'. If it is not a bad run, say '%s'. Just say the phrase, no need to explain" % (badrunKW, goodrunKW)})
+        messages.append({'role': 'user', 'content': "Just say the phrase."})
         for i in range(settings['maxPromptAttempt']):
             response = llm.create_chat_completion(messages=messages)
             response = response['choices'][0]['message']['content']
@@ -122,15 +125,38 @@ def sentimentLLM(result, skip, threshold=0, **kwargs):
                     return True, reason
         return False, reason
 
-    print('LLM loaded.')
+    # save output of LLM to prevent repeated calculations
+    CACHEPREFIX = '.LLMCache'
+    os.makedirs(CACHEPREFIX, exist_ok=True)
 
-    negRuns = []
-    negHistory = []
-    negSummary = []
+    def LLMCache(runID, content):
+        dictTot = {'runID': runID, 'content': content, **settings}
+        digest = sha256(json.dumps(dictTot, sort_keys=True).encode('utf-8')).hexdigest()
+        cacheFilename = os.path.join(CACHEPREFIX, digest + '.json')
+        for i in range(1, 10000):
+            if os.path.isfile(cacheFilename):
+                with open(cacheFilename) as f:
+                    cache = json.load(f)
+                    if cache['runID'] == runID:
+                        return cache['goodrun'], cache['response']    
+                    else:
+                        cacheFilename = os.path.join(CACHEPREFIX, digest + '_%d.json' % i)
+            else:
+                break
+        else:
+            raise RuntimeError('Really? 10000 hash collisions? Clear your LLMCache.')
+
+        goodrun, response = askLLMIsRunGood(runID, content)
+        with open(cacheFilename, 'w') as f:
+            json.dump({'runID': runID, 'goodrun': goodrun, 'response': response}, f)
+        return goodrun, response
+
+
+    print('LLM loaded.')
     reasons = {}
     print('Deciding if the run is good.')
     print('Description of a bad run: ' + settings['badRunDescription'])
-    for runId, content in tqdm(result.items()):
+    for runId, content in tqdm(result.items(), desc='LLM is judging'):
         if runId in skip:
             continue
         text = ' '.join([line for _, line in content.message.items()])
@@ -140,20 +166,18 @@ def sentimentLLM(result, skip, threshold=0, **kwargs):
         else:
             try:
                 #response = askLLM(runId, text, "A run is bad if it suffers unexpected beam lost, or a lot of errors, or suffer critical error, or it says explicity that the run is bad, otherwise they are good. However, if only one or two sectors are tripped, it's still good. If you cannot made definitive assessment, assume it is bad.")
-                goodRun, response = askLLMIsRunGood(runId, text, settings['badRunDescription'])
+                goodRun, response = LLMCache(runId, text)
             except Exception as e:
                 response = 'LLM encounters an error: ' + str(e)
                 goodRun = False
         if not goodRun:
-            negRuns.append(runId)
-            negHistory.append(runId)
-            negSummary.append(runId)
             reasons[runId] = response
-    return negRuns, negHistory, negSummary, reasons
+    return reasons
 
 
 
 def sentimentTrans(result, skip, threshold, **kwargs):
+    raise RuntimeError('sentimentTrans is deprecated')
     try:
         from transformers import pipeline
     except ModuleNotFoundError as e:

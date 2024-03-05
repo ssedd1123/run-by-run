@@ -5,10 +5,10 @@
 To install the required dependencies, run the following command:
 
 ```bash
-python3 -m pip install nltk prettytable selenium prompt_toolkit beautifulsoup4 pyfiglet chromedriver_autoinstaller
+python3 -m pip install nltk prettytable selenium prompt_toolkit beautifulsoup4 pyfiglet chromedriver_autoinstaller tqdm
 ```
 
-If you wish to use AI, you need to install `llama_cpp`. For CPU-only usage, run:
+If you wish to use AI, you need to install `llama_cpp`. For CPU-only usage (NOT RECOMMENDED!!!), run:
 
 ```bash
 python3 -m pip install llama_cpp
@@ -32,7 +32,7 @@ Enter your username and password when prompted. The download will commence upon 
 
 Upon completion, an interactive interface will appear allowing you to categorize each run as either good or bad. The final list of selections will be saved to `newBadrun.list`.
 
-All downloaded run entries will be cached locally to minimize network load during subsequent retrievals.
+All downloaded run entries will be cached locally to minimize network load during subsequent retrievals. To remove the cached pages, remove the `HTML` directory. 
 
 ## Use Firefox
 
@@ -41,6 +41,25 @@ If Chrome is unavailable, add the `--useFirefox` argument to your command:
 ```bash
 python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useFirefox
 ```
+
+## Set minimal run duration
+
+You can automatically reject runs that are too short. Use the flag `-md` as follow,
+
+```bash
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list -md <minimum duration in seconds>
+```
+
+When you manually review bad runs in the UI, runs that are too short will be indicated clearly both in the center and lower left hand corner of the UI.
+
+Alternatively, if you do not want to review every run manually and just want a list of short run, enable `--skipUI`,
+
+```bash
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list -md <minimum duration in seconds> --skipUI
+```
+
+You will not be prompted to select bad runs. Only runs with short duration will be saved to `newBadrun.list`.
+
 
 ## Ask AI
 
@@ -53,13 +72,29 @@ To run AI, modify the "model" entry in `LLM_settings.json` to point to the gguf 
 Use the following command to create a bad run list automatically:
 
 ```bash
-python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --justAI LLM
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useAI
 ```
 
 For manual review of each AI entry, use the `--useAI` flag instead of `--justAI`:
 
 ```bash
-python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useAI LLM
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useAI 
+```
+
+You can also use `--skipUI` to save all bad runs without manual review,
+
+```bash
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useAI --skipUI
+```
+
+Response from AI are cached. The responses are saved in `.LLMCache` directory so the next time you run AI with the same json file and runID, it will just retrieve the cache to speed things up.
+
+## Change bad run criteria
+
+You can describe what a bad run is in plain English in `LLM_settings.json`. If you do not want to overwrite your previous settings, you can copy that file and call it something else, then run,
+
+```bash
+python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useAI --jsonAI <the new json filename>
 ```
 
 ## Other Questions

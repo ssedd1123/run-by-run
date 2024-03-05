@@ -4,10 +4,6 @@
     "n_ctx": 2048,
     "verbose": false,
     "badRunDescription":         "A run is bad if it suffers unexpected beam lost, or a lot of errors, or suffer critical error, or it says explicity that the run is bad, otherwise they are good. However, if only one or two iTPC sectors are tripped, it's still good.",
-    "badRunDescriptionBackup":   "A run is bad if it suffers unexpected beam lost, or a lot of errors, or suffer critical error, or it says explicity that the run is bad, otherwise they are good. All laser runs are bad runs. However, if only one or two iTPC sectors are tripped, it is still a good run.",
-    "badRunDescriptionBackup":   "A run is bad if it suffers unexpected beam lost, or a lot of errors, or suffer critical error, or it says explicity that the run is bad, or there is any issue with ETOF, otherwise they are good. All laser runs are bad runs. However, if only one or two iTPC sectors are tripped, it is still a good run.",
-    "badRunDescriptionBackup":   "A run is bad if it suffers unexpected beam lost, or a lot of errors, or suffer critical error, or it says explicity that the run is bad, otherwise they are good. However, if only one or two iTPC sectors are tripped, it is still a good run. Also ignore any issues with ETOF or BTOW. ETOF and BTOW error do not make a run bad.",
-
     "additionalPrompt": "If you cannot made definitive assessment, assume it is a good run to give it benefit of the doubt. Is this a good run? Keep your reply short.",
     "maxPromptAttempt": 3,
     "temperature": 0.2

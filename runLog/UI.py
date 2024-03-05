@@ -22,8 +22,8 @@ CURRID = 0
 TEXTTYPE = TEXT.BRIEF
 MULTABLE = False # disable left/right arrow if not multable
 HIGHLIGHT = None # should be list of True/False with CURRID as index. Color on text area changes if True
-HISTORYHIGHLIGHT = None
-SUMMARYHIGHLIGHT = None
+#HISTORYHIGHLIGHT = None
+#SUMMARYHIGHLIGHT = None
 INTROTEXT = "Control with (up, down, left, right), Pg Up, Pg Down and Enter keys. Shortcut: q is good-run, w is bad-run and tab is go back."
 REASONS = None # Reason for each run to be here. Should be list of string
 RUNMEMO = None # text
@@ -39,19 +39,19 @@ def on_change(prev_id):
     if CURRID < len(RUNMEMO):
         memo_area.text = RUNMEMO[CURRID]
         text_reason.text = 'Current run = %s for reason %s' % (KEYS[CURRID], REASONS[CURRID])
-        if SUMMARYHIGHLIGHT is None:
-            summary_sentement_label.text = ''
-        elif SUMMARYHIGHLIGHT[CURRID]:
-            summary_sentement_label.text = 'Bad Summary'
-        else:
-            summary_sentement_label.text = 'Good Summary'
+        #if SUMMARYHIGHLIGHT is None:
+        #    summary_sentement_label.text = ''
+        #elif SUMMARYHIGHLIGHT[CURRID]:
+        #    summary_sentement_label.text = 'Bad Summary'
+        #else:
+        #    summary_sentement_label.text = 'Good Summary'
 
-        if HISTORYHIGHLIGHT is None:
-            history_sentement_label.text = ''
-        elif HISTORYHIGHLIGHT[CURRID]:
-            history_sentement_label.text = 'Bad history'
-        else:
-            history_sentement_label.text = 'Good history'
+        #if HISTORYHIGHLIGHT is None:
+        #    history_sentement_label.text = ''
+        #elif HISTORYHIGHLIGHT[CURRID]:
+        #    history_sentement_label.text = 'Bad history'
+        #else:
+        #    history_sentement_label.text = 'Good history'
 
         if HIGHLIGHT is None:
             entry_sentement_label.text = ''
@@ -175,26 +175,26 @@ def get_entry_style() -> str:
             return 'class:indicator-bad'
     return 'class:indicator-good'
 
-history_sentement_label = TextArea(focusable=False, width=25)
-history_sentement_label.text = 'History is good'
-def get_history_style() -> str:
-    if HISTORYHIGHLIGHT is None or CURRID < 0:
-        return 'class:left-pane'
-    elif CURRID >= 0 and CURRID < len(HISTORYHIGHLIGHT):
-        if HISTORYHIGHLIGHT[CURRID]:
-            return 'class:indicator-bad'
-    return 'class:indicator-good'
-
-
-summary_sentement_label = TextArea(focusable=False, width=25)
-summary_sentement_label.text = 'Summary is good'
-def get_summary_style() -> str:
-    if SUMMARYHIGHLIGHT is None or CURRID < 0:
-        return 'class:left-pane'
-    elif CURRID >= 0 and CURRID < len(SUMMARYHIGHLIGHT):
-        if SUMMARYHIGHLIGHT[CURRID]:
-            return 'class:indicator-bad'
-    return 'class:indicator-good'
+#history_sentement_label = TextArea(focusable=False, width=25)
+#history_sentement_label.text = 'History is good'
+#def get_history_style() -> str:
+#    if HISTORYHIGHLIGHT is None or CURRID < 0:
+#        return 'class:left-pane'
+#    elif CURRID >= 0 and CURRID < len(HISTORYHIGHLIGHT):
+#        if HISTORYHIGHLIGHT[CURRID]:
+#            return 'class:indicator-bad'
+#    return 'class:indicator-good'
+#
+#
+#summary_sentement_label = TextArea(focusable=False, width=25)
+#summary_sentement_label.text = 'Summary is good'
+#def get_summary_style() -> str:
+#    if SUMMARYHIGHLIGHT is None or CURRID < 0:
+#        return 'class:left-pane'
+#    elif CURRID >= 0 and CURRID < len(SUMMARYHIGHLIGHT):
+#        if SUMMARYHIGHLIGHT[CURRID]:
+#            return 'class:indicator-bad'
+#    return 'class:indicator-good'
 
 
 
@@ -211,13 +211,14 @@ root_container = Box(
                     Box(
                         body=HSplit([GoodRunButton, BadRunButton, GoBackButton, ExitButton,
                                      Frame(memo_area, style='class:input-field'),
-                                     Box(body=entry_sentement_label, style=get_entry_style, height=1),
-                                     Box(body=history_sentement_label, style=get_history_style, height=1),
-                                     Box(body=summary_sentement_label, style=get_summary_style, height=1)], padding=1, width=25),
+                                     Box(body=entry_sentement_label, style=get_entry_style, height=1)],
+                                     #Box(body=history_sentement_label, style=get_history_style, height=1),
+                                     #Box(body=summary_sentement_label, style=get_summary_style, height=1)], 
+                                     padding=1, width=25),
                         padding=1,
                         style="class:left-pane",
                     ),
-                    HSplit([Box(body=VSplit([LeftArrow, Box(body=text_content_type, style='class:right-pane', width=Dimension(preferred=55)), RightArrow]), style='class:right-pane', height=1, padding=0),
+                    HSplit([Box(body=VSplit([LeftArrow, Box(body=text_content_type, style='class:right-pane', width=Dimension(preferred=60)), RightArrow]), style='class:right-pane', height=1, padding=0),
                             text_area_box], padding=0)
                 ], height=Dimension(preferred=70)
             ),
@@ -315,8 +316,8 @@ style = Style(
 application = Application(layout=layout, key_bindings=kb, style=style, full_screen=True, mouse_support=True)
 
 
-def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro='', defaultNotes=None, skipUI=False):
-    global RESULT, IDSTATUS, CURRID, KEYS, TEXTTYPE, HIGHLIGHT, REASONS, SUMMARYHIGHLIGHT, HISTORYHIGHLIGHT, RUNMEMO
+def main(result, reasons, badKeys=None, intro='', defaultNotes=None, skipUI=False): #, badHistory=None, badSummary=None, ):
+    global RESULT, IDSTATUS, CURRID, KEYS, TEXTTYPE, HIGHLIGHT, REASONS, RUNMEMO #SUMMARYHIGHLIGHT, HISTORYHIGHLIGHT, RUNMEMO
     # remove empty entry
     KEYS = []
     RESULT = {}
@@ -327,8 +328,8 @@ def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=
     ExitButton.text = "" 
     text_reason.text = ""
     text_content_type.text = "" 
-    summary_sentement_label.text = ""
-    history_sentement_label.text = ""
+    #summary_sentement_label.text = ""
+    #history_sentement_label.text = ""
     entry_sentement_label.text = ""
     TEXTTYPE = TEXT.HISTORY # the prompt is initialized by an automatic left click, so starts at center for the automatic left-click to be registered
     RUNMEMO = []
@@ -337,12 +338,12 @@ def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=
     if badKeys is not None:
         badKeys = set(badKeys)
         HIGHLIGHT = []
-    if badHistory is not None:
-        badHistory = set(badHistory)
-        HISTORYHIGHLIGHT = []
-    if badSummary is not None:
-        badSummary = set(badSummary)
-        SUMMARYHIGHLIGHT = []
+    #if badHistory is not None:
+    #    badHistory = set(badHistory)
+    #    HISTORYHIGHLIGHT = []
+    #if badSummary is not None:
+    #    badSummary = set(badSummary)
+    #    SUMMARYHIGHLIGHT = []
 
     for key, content in result.items():
         KEYS.append(key)
@@ -357,17 +358,17 @@ def main(result, reasons, badKeys=None, badHistory=None, badSummary=None, intro=
             if key in badKeys:
                 HIGHLIGHT.append(True)
             else:
-               HIGHLIGHT.append(False)
-        if badHistory is not None:
-            if key in badHistory:
-                HISTORYHIGHLIGHT.append(True)
-            else:
-                HISTORYHIGHLIGHT.append(False)
-        if badSummary is not None:
-            if key in badSummary:
-                SUMMARYHIGHLIGHT.append(True)
-            else:
-                SUMMARYHIGHLIGHT.append(False)
+                HIGHLIGHT.append(False)
+        #if badHistory is not None:
+        #    if key in badHistory:
+        #        HISTORYHIGHLIGHT.append(True)
+        #    else:
+        #        HISTORYHIGHLIGHT.append(False)
+        #if badSummary is not None:
+        #    if key in badSummary:
+        #        SUMMARYHIGHLIGHT.append(True)
+        #    else:
+        #        SUMMARYHIGHLIGHT.append(False)
         brief = ('\n' + '-' * 50 + '\n' + '-'*50 + '\n').join([entry for _, entry in content.message.items()])
         if content.summary is None:
             summary = detailed = brief

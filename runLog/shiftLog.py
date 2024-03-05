@@ -57,11 +57,11 @@ def selectRun(results, runID, dp):
 
     return dp[runID]
 
-def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=False, timeout=60, ignoreEmpty=False, **kwargs):
+def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=False, timeout=60, ignoreEmpty=False, minDuration=None, **kwargs):
     results = {}
     dp = {}
     dpSelect = defaultdict(dict)
-    junkID = []
+    junkReasons = {}
     try:
         #driver = browser.getDriver(firefox, timeout, username, password)
         if firefox:
@@ -81,7 +81,7 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
                 runStart, runEnd = sl.findRunTime(run, runYR, driver, timeout, pc, username, password)
             except ValueError as e:
                 results[run] = RunInfo({'Error': 'Run info cannot be fetched from online database. Detailed error: ' + str(e)}, None, None, None, None)
-                junkID.append(run)
+                junkReasons[run] = 'Run info cannot be fetched from online database. Detailed error: ' + str(e)
             else:
                 result, summary = sl.getEntriesAndSummary(driver, runYR, runStart, runEnd, timedelta(hours=10),
                                                           timedelta(minutes=90), timedelta(minutes=90), 
@@ -93,13 +93,18 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
                         continue
                 if summary is None:
                     summary = 'Summary not found'
+                if minDuration is not None:
+                    duration = runEnd - runStart
+                    if duration < timedelta(seconds=minDuration):
+                        junkReasons[run] = 'BAD RUN: the run lasted %d seconds < min threshold of %d seconds.' % (duration.seconds, minDuration)
+                        selectedMessage = {runStart - timedelta(seconds=1): junkReasons[run], **selectedMessage}
                 results[run] = RunInfo(selectedMessage, result, 
                                        summary[1], runStart, runEnd)
     finally:
         if driver is not None:
             driver.quit()
 
-    return results, junkID
+    return results, junkReasons
 
 def printBriefDict(result):
     x = PrettyTable()
@@ -114,49 +119,51 @@ def printBriefDict(result):
 
 
 
-def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, **kwargs):
+def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, jsonAI, **kwargs):
     print('Reading bad run list from text file %s' % input)
     runId, reasons = getRunIdFromFile(input)
     if username is None or password is None:
         username, password = login()
     pc = PageCache(timeStep)
-    result, junkID = getShiftLogDetailed(runId, pc, runYR, username=username, password=password, ignoreEmpty=ignoreEmpty, **kwargs)
+    # load data from shiftLog, return junks that are easy to identify e.g. shift leader marked as junk, duration doesn't meet min requirement. 
+    result, junkReasons = getShiftLogDetailed(runId, pc, runYR, username=username, password=password, ignoreEmpty=ignoreEmpty, **kwargs)
+
     if allOutput is not None:
         print('Saving human-readable shiftLog to %s' % allOutput)
         with open(allOutput, 'w') as f:
             f.write(printBriefDict(result))
-    badRuns = []
-    badHistory = []
-    badSummary = []
-    AIReasons = {}
+
     if useAI:
-        badRuns, badHistory, badSummary, AIReasons = sentiment(result, useAI, skip=set(junkID), threshold=threshold)
-        intro = 'AI thinks that %d runLog entries out of a total of %d are bad runs.\nBackground color will turn for red for those runs that are considered bad.' % (len(badRuns), len(result))
+        AIReasons = sentiment(result, 'LLM', skip=set(junkReasons.keys()), settings_json=jsonAI, threshold=threshold)
+        junkReasons = {**AIReasons, **junkReasons}
+        intro = 'AI thinks that %d runLog entries out of a total of %d are bad runs.\nBackground color will turn for red for those runs that are considered bad.' % (len(AIReasons), len(result))
     else:
-        intro = 'There are %d runs to go through' % len(result)
+        intro = 'There are %d runs to go through.' % len(result)
     import UI
-    pos, neg, memo = UI.main(result, reasons, set(badRuns + junkID) if useAI else None, 
-                                              set(badHistory + junkID) if useAI else None, 
-                                              set(badSummary + junkID) if useAI else None, intro=intro,
-                                              defaultNotes=AIReasons,
-                                                  skipUI=skipUI)
-    for run in junkID:
-        memo[run] = ' '.join([line for _, line in result[run].message.items()]) + ' Additional info: ' + memo[run]
-    #if useAI:
-    #    for run in badRuns:
-    #        memo[run] = 'BadEntry ' + memo[run]
-    #    for run in badHistory:
-    #        memo[run] = 'BadHistory ' + memo[run]
-    #    for run in badSummary:
-    #        memo[run] = 'BadSummary ' + memo[run]
+    pos, neg, memo = UI.main(result, 
+                             reasons, 
+                             set(junkReasons.keys()), 
+                             intro=intro,
+                             defaultNotes=junkReasons,
+                             skipUI=skipUI)
+    if skipUI:
+        # without user intervention, all junk runs are rejected
+        for run, reason in junkReasons.items():
+            memo[run] = reason
+
     for runID, content in neg.items():
         neg[runID] = content
+
+    # store run log of good runs in text file
     if posOutput is not None:
         with open(posOutput, 'w') as f:
             f.write(printBriefDict(pos))
+    # store run log of bad runs in text file
     if negOutput is not None:
         with open(negOutput, 'w') as f:
             f.write(printBriefDict(neg))
+
+    # store bad run list with notes on the memo. 
     with open(badrun, 'w') as f:
         f.write('\n'.join(['%s - %s' % (id_, memo[id_]) for id_ in neg.keys()]))
 
@@ -179,8 +186,9 @@ if __name__ == '__main__':
     parser.add_argument('-ao', '--allOutput', help='Name of the human readible file to which all run are stored.')
     parser.add_argument('-po', '--posOutput', help='Name of the human readible file to which positive runs are stored')
     parser.add_argument('-no', '--negOutput', help='Name of the human readible file to which negative runs are stored')
-    parser.add_argument('--useAI', choices=['NLTK', 'LLM', 'TRANS'], help='Use AI to help select bad runs from shiftLog.')
-    parser.add_argument('--justAI', choices=['NLTK', 'LLM', 'TRANS'], help='Just Use AI to select bad runs from shiftLog. No user prompt. Will override --useAI option.')
+    parser.add_argument('--skipUI', action='store_true', help='Will skip the user verification step. Only return junk that are identified automatically either with AI or just duration requirement.')
+    parser.add_argument('--useAI', action='store_true', help='Use AI to select bad runs from shiftLog.')
+    parser.add_argument('--jsonAI', default='LLM_settings.json', help='Json file for the AI settings')
     parser.add_argument('-th', '--threshold', type=float, default=0.99, help='Threshold of score higher than which a shift log entry will be consider bad by AI. Only used when TRANS model is used. (default: %(default)s)')
 
     parser.add_argument('-un', '--username', help='Username of the shift log. (Experimental. Unstable. Use at your own risk)')
@@ -189,17 +197,17 @@ if __name__ == '__main__':
     parser.add_argument('-to', '--timeout', default=60, type=float, help='Longest time to wait before connection timeout (default: %(default)s)')
     parser.add_argument('-YR', '--runYR', type=int, help='Run year. e.g. 20 for Run 20, 19 for Run 19', required=True)
     parser.add_argument('-ie', '--ignoreEmpty', action='store_true', help='If enable, runs where shift log entries are empty will be ignored and not appear in GUI or the bad run list.')
+    parser.add_argument('-md', '--minDuration', default=None, type=float, help='Unit is seconds. If duration of a run is less than minDuration, the run is automatically considered bad.')
+
 
 
     args = parser.parse_args()
-    skipUI = False
-    if args.justAI:
-        args.useAI = args.justAI
-        skipUI = True
     if args.output is not None:
         raise DeprecationWarning('The flag -o is not used anymore because all loaded pages are cached automatically now. Run again with no -o option.')
     main(args.input, args.runYR, args.timeStep, args.allOutput,
          args.badrun, args.posOutput, args.negOutput, args.useAI, 
          threshold=args.threshold, username=args.username, password=args.password, 
-         firefox=args.useFirefox, timeout=args.timeout, skipUI=skipUI, ignoreEmpty=args.ignoreEmpty)
+         firefox=args.useFirefox, timeout=args.timeout, skipUI=args.skipUI, 
+         ignoreEmpty=args.ignoreEmpty, minDuration=args.minDuration,
+         jsonAI=args.jsonAI)
     print('*' * 100)
