@@ -62,6 +62,9 @@ def segmentAndReject(runs, x, xerr, pen=1, min_size=10, gamma=None, stdRange=5, 
                 x_mean = x_copy[idValid].mean(axis=0)
                 x_std = x_copy[idValid].std(axis=0)
             x_normal = ((x_copy-x_mean)/x_std)[idValid, :]
+            if x_normal.shape[0] < min_size:
+                print("So many runs are rejected that there are fewer than min_size runs left. Cannot segment futher.")
+                break
             result = segmentation(pen=pen, min_size=min_size, signal=x_normal, gamma=gamma, removeLastRun=not merge, useJMLR=useJMLR, **kwargs)
             if merge:
                 xerr_normal = (xerr_copy/x_std)[idValid, :]

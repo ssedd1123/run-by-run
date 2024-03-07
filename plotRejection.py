@@ -81,7 +81,10 @@ def plotOutlier(ax, fig, runs, values, uncert,
 
 
     # convert x-axis into run id
-    ax.set_ylim(lowerBound, upperBound)
+    if np.isfinite(lowerBound) and np.isfinite(upperBound):
+        ax.set_ylim(lowerBound, upperBound)
+    else:
+        warnings.warn('lower bound or upper bound is not finite. Will use auto-axis range instead.')
     ax.set_xlim(0, x.shape[0]-1)
     ax.set_ylabel(ytitle)
     ax.set_xlabel('Run ID')

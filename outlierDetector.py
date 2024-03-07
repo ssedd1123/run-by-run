@@ -81,7 +81,7 @@ def outlierDetector(runs, values, uncert, idSegments, useMAD, weights, legacy=Fa
     for idEdge, (lowEdge, upEdge) in enumerate(zip([0] + idSegments, idSegments + [runs.shape[0]])):
         if lowEdge == upEdge:
             meanSeg = np.zeros(values.shape[1])
-            stdRangeSet = np.zeros(values.shape[1])
+            stdRangeSeg = np.zeros(values.shape[1])
             runsRejectedSeg = np.array([])
         else:
             if seqRej:
