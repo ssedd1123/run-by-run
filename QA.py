@@ -143,6 +143,7 @@ if __name__ == '__main__':
     parser.add_argument('-mi', '--mergeID', action='store_true', help='Merge nearby segments if their means are too close to each other, like within 5 SDs.')
     parser.add_argument('-g', '--globalRejection', action='store_true', help='Run outliner rejection once before segmentation iteration.')
     parser.add_argument('-lg', '--legacy', action='store_true', help='Use legacy mode to emulate run-by-run v2')
+    parser.add_argument('-wg', '--writeGood', action='store_true', help='Also write good run to output, but there will be no reason after the run number as it is not rejected.')
 
 
     args = parser.parse_args()
@@ -228,23 +229,6 @@ if __name__ == '__main__':
         print('Stops at iteration %d' % it)
     else:
         print('Stops at iteration %d with pen = %g' % (it, pen))
-    # write result to text file
-    print('Writing bad runs to %s' % args.output)
-    #if weights is not None:
-    #    id = np.all(weights > 0, axis=1)
-    #    invalidRuns = set(runs[~id])
-    #    id = [True]*runsRejected.shape[0]
-    #    for i, (rej, rea) in enumerate(zip(runsRejected, reasonsRejected)):
-    #        if rej in invalidRuns:
-    #            id[i] = False
-    #    runsRejected = runsRejected[id]
-    #    reasonsRejected = reasonsRejected[id, :]
-
-    writeBadRuns(runsRejected, reasonsRejected, varNames, args.output, args.noReasons)
-
-    print('Writing break points to %s' % args.breakptOutput)
-    with open(args.breakptOutput, 'w') as file_:
-        file_.write('\n'.join(['%d' % er for er in edgeRuns]))
 
     # plot every observable
     statSummary = pr.main(runs, mean, std,
@@ -252,6 +236,24 @@ if __name__ == '__main__':
                           args.allRunID, args.plotRange, args.rejectionRange, args.pseudoID,
                           not args.hideEdgeRuns, 'MAD' if args.MAD else 'RMS', args.element, args.sNN,
                           args.genPDF, args.batch, args.plotGood)
+
+    # write result to text file
+    print('Writing bad runs to %s' % args.output)
+
+    if args.writeGood:
+        setRejected = set(runsRejected)
+        goodRuns = []
+        for r in runs:
+            if r not in setRejected:
+                goodRuns.append(r)
+        runsRejected = np.append(runsRejected, goodRuns)
+        reasonsRejected = np.append(reasonsRejected, [[False]*len(varNames)]*len(goodRuns), axis=0)
+    writeBadRuns(runsRejected, reasonsRejected, varNames, args.output, args.noReasons)
+
+    print('Writing break points to %s' % args.breakptOutput)
+    with open(args.breakptOutput, 'w') as file_:
+        file_.write('\n'.join(['%d' % er for er in edgeRuns]))
+
 
     print('*'*100)
     print('%d runs rejected' % runsRejected.shape[0])

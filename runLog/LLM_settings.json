@@ -6,5 +6,6 @@
     "badRunDescription": "If just a few TPC, iTPC or TPX RDO or sectors tripped, the run is still good. If any of the following happen, then this is a bad run. 1. beam lost. 2. critical errors. 3. Anode or cathod trip. ",
     "additionalPrompt": "Does the run satisfy any of the above conditions? If any one condition is satisfied, the run is bad. If you are not sure, give the run benefit of the doubt and consider it a good run. Keep your reply short.",
     "maxPromptAttempt": 3,
-    "temperature": 0.2
+    "temperature": 0.2,
+    "seed": 5
 }

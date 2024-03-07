@@ -210,13 +210,17 @@ if __name__ == '__main__':
     if args.badRuns is not None:
         with open(args.badRuns) as f:
             for line in f:
-                runAndReasons = line.split(' ')
-                runsRejected.append(int(runAndReasons[0]))
-                reasons = [False]*len(varNames)
-                for reason in runAndReasons[1:]:
-                    if reason:
-                        reasons[var2ID[reason.strip()]] =True
-                reasonsRejected.append(reasons)
+                if not line.isspace():
+                    runAndReasons = line.strip().split(' ')
+                    # if there are no reasons, the good is assumed to be good
+                    if len(runAndReasons) == 1:
+                        continue
+                    runsRejected.append(int(runAndReasons[0]))
+                    reasons = [False]*len(varNames)
+                    for reason in runAndReasons[1:]:
+                        if reason in var2ID:
+                            reasons[var2ID[reason.strip()]] =True
+                    reasonsRejected.append(reasons)
 
     reasonsRejected = np.array(reasonsRejected)
     print('Plotting result')

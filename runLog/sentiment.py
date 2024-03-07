@@ -86,7 +86,7 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
     from llama_cpp import Llama
     print('Loading LLM model.')
     #llm = Llama(model_path=r'D:\Download\text-generation-webui-main\text-generation-webui-main\models\mistral-7b-instruct-v0.2.Q5_K_M.gguf', n_gpu_layers=512, n_ctx=512, verbose=False)
-    llm = Llama(model_path=settings['model'], n_gpu_layers=settings['n_gpu_layers'], n_ctx=settings['n_ctx'], verbose=settings['verbose'])
+    llm = Llama(model_path=settings['model'], n_gpu_layers=settings['n_gpu_layers'], n_ctx=settings['n_ctx'], verbose=settings['verbose'], seed=settings['seed'])
 
     def askLLMIsRunGood(runID, content):
         # ask LLM to give explicit result
