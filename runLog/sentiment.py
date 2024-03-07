@@ -78,7 +78,7 @@ def sentimentNLTK(result, skip, **kwargs):
     return negRuns, negHistory, negSummary, reasons
 
 
-def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', **kwargs):
+def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', forceAI=False, **kwargs):
     # load settings of LLM from json
     with open(settings_json) as f:
         settings = json.load(f)
@@ -95,11 +95,11 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', *
         goodrunKW = 'GOOD GOOD GOOD'
 
         messages = [
-                {"role": "system", "content": "You are an assistant who help users identify bad runs from runLog."},
+                #{"role": "system", "content": "I am an assistant who help users identify bad runs from runLog. I will follow user's instruction truthfully and accurately. "},
                 {
                     "role": "user",
                     "content": "This is the run log of run  %s\n%s\n%s. %s\n " % (runID, content, settings['badRunDescription'], settings['additionalPrompt']) +
-                               "If it is a bad run, say explicitly the phrase '%s'. If it is not a bad run, say explicitly the phrase '%s'." % (badrunKW, goodrunKW)
+                               "Follow the instructions to the letter. If it is a bad run, say explicitly the phrase '%s'. If it is not a bad run, say explicitly the phrase '%s'." % (badrunKW, goodrunKW)
                 }
             ]
 
@@ -114,7 +114,7 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', *
 
         # if LLM fails to follow direction, we will prompt it repeatedly until it gives us the answer, or if we run out of time and declare the run bad
         messages.append({"role": "system", "content": reason})
-        messages.append({'role': 'user', 'content': "Just say the phrase."})
+        messages.append({'role': 'user', 'content': "%s. Just say the phrase." % settings['additionalPrompt']})
         for i in range(settings['maxPromptAttempt']):
             response = llm.create_chat_completion(messages=messages)
             response = response['choices'][0]['message']['content']
@@ -129,22 +129,23 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', *
     CACHEPREFIX = '.LLMCache'
     os.makedirs(CACHEPREFIX, exist_ok=True)
 
-    def LLMCache(runID, content):
+    def LLMCache(runID, content, forceAI):
         dictTot = {'runID': runID, 'content': content, **settings}
         digest = sha256(json.dumps(dictTot, sort_keys=True).encode('utf-8')).hexdigest()
         cacheFilename = os.path.join(CACHEPREFIX, digest + '.json')
-        for i in range(1, 10000):
-            if os.path.isfile(cacheFilename):
-                with open(cacheFilename) as f:
-                    cache = json.load(f)
-                    if cache['runID'] == runID:
-                        return cache['goodrun'], cache['response']    
-                    else:
-                        cacheFilename = os.path.join(CACHEPREFIX, digest + '_%d.json' % i)
+        if not forceAI:
+            for i in range(1, 10000):
+                if os.path.isfile(cacheFilename):
+                    with open(cacheFilename) as f:
+                        cache = json.load(f)
+                        if cache['runID'] == runID:
+                            return cache['goodrun'], cache['response']    
+                        else:
+                            cacheFilename = os.path.join(CACHEPREFIX, digest + '_%d.json' % i)
+                else:
+                    break
             else:
-                break
-        else:
-            raise RuntimeError('Really? 10000 hash collisions? Clear your LLMCache.')
+                raise RuntimeError('Really? 10000 hash collisions? Clear your LLMCache.')
 
         goodrun, response = askLLMIsRunGood(runID, content)
         with open(cacheFilename, 'w') as f:
@@ -166,7 +167,7 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', *
         else:
             try:
                 #response = askLLM(runId, text, "A run is bad if it suffers unexpected beam lost, or a lot of errors, or suffer critical error, or it says explicity that the run is bad, otherwise they are good. However, if only one or two sectors are tripped, it's still good. If you cannot made definitive assessment, assume it is bad.")
-                goodRun, response = LLMCache(runId, text)
+                goodRun, response = LLMCache(runId, text, forceAI)
             except Exception as e:
                 response = 'LLM encounters an error: ' + str(e)
                 goodRun = False

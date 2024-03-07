@@ -83,7 +83,7 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
                 results[run] = RunInfo({'Error': 'Run info cannot be fetched from online database. Detailed error: ' + str(e)}, None, None, None, None)
                 junkReasons[run] = 'Run info cannot be fetched from online database. Detailed error: ' + str(e)
             else:
-                result, summary = sl.getEntriesAndSummary(driver, runYR, runStart, runEnd, timedelta(hours=10),
+                result, summary = sl.getEntriesAndSummary(driver, runYR, runStart, runEnd, timedelta(hours=3),
                                                           timedelta(minutes=90), timedelta(minutes=90), 
                                                           timeout, dp, pc, username, password)
                 selectedMessage = selectRun(result, run, dpSelect)
@@ -119,7 +119,7 @@ def printBriefDict(result):
 
 
 
-def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, jsonAI, **kwargs):
+def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, jsonAI, forceAI, **kwargs):
     print('Reading bad run list from text file %s' % input)
     runId, reasons = getRunIdFromFile(input)
     if username is None or password is None:
@@ -134,7 +134,7 @@ def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI,
             f.write(printBriefDict(result))
 
     if useAI:
-        AIReasons = sentiment(result, 'LLM', skip=set(junkReasons.keys()), settings_json=jsonAI, threshold=threshold)
+        AIReasons = sentiment(result, 'LLM', skip=set(junkReasons.keys()), settings_json=jsonAI, threshold=threshold, forceAI=forceAI)
         junkReasons = {**AIReasons, **junkReasons}
         intro = 'AI thinks that %d runLog entries out of a total of %d are bad runs.\nBackground color will turn for red for those runs that are considered bad.' % (len(AIReasons), len(result))
     else:
@@ -165,14 +165,14 @@ def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI,
 
     # store bad run list with notes on the memo. 
     with open(badrun, 'w') as f:
-        f.write('\n'.join(['%s - %s' % (id_, memo[id_]) for id_ in neg.keys()]))
+        f.write('\n'.join(['%s $ %s' % (id_, memo[id_]) for id_ in neg.keys()]))
 
 
 def printBanner():
     print(u'\u2500' * 100)
     print(pyfiglet.figlet_format('SHIFT LOG SCRAPER'))
     print(u'\u2500' * 100)
-    print('Contact: <ctsang@bnl.gov>, <yuhu@bnl.gov>, <ptribedy@bnl.gov>')
+    print('Contact: <ctsang@bnl.gov>, <yuhu@bnl.gov>, <ptribedy@bnl.gov>, <asheikh2@kent.edu>')
     print(u'\u2500' * 100)
 
 
@@ -188,6 +188,7 @@ if __name__ == '__main__':
     parser.add_argument('-no', '--negOutput', help='Name of the human readible file to which negative runs are stored')
     parser.add_argument('--skipUI', action='store_true', help='Will skip the user verification step. Only return junk that are identified automatically either with AI or just duration requirement.')
     parser.add_argument('--useAI', action='store_true', help='Use AI to select bad runs from shiftLog.')
+    parser.add_argument('--forceAI', action='store_true', help='Force AI to not use cache and rerun.')
     parser.add_argument('--jsonAI', default='LLM_settings.json', help='Json file for the AI settings')
     parser.add_argument('-th', '--threshold', type=float, default=0.99, help='Threshold of score higher than which a shift log entry will be consider bad by AI. Only used when TRANS model is used. (default: %(default)s)')
 
@@ -209,5 +210,5 @@ if __name__ == '__main__':
          threshold=args.threshold, username=args.username, password=args.password, 
          firefox=args.useFirefox, timeout=args.timeout, skipUI=args.skipUI, 
          ignoreEmpty=args.ignoreEmpty, minDuration=args.minDuration,
-         jsonAI=args.jsonAI)
+         jsonAI=args.jsonAI, forceAI=args.forceAI)
     print('*' * 100)

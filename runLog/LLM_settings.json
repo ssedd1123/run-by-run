@@ -3,8 +3,8 @@
     "n_gpu_layers": 512,
     "n_ctx": 2048,
     "verbose": false,
-    "badRunDescription":         "A run is bad if it suffers unexpected beam lost, or a lot of errors, or suffer critical error, or it says explicity that the run is bad, otherwise they are good. However, if only one or two iTPC sectors are tripped, it's still good.",
-    "additionalPrompt": "If you cannot made definitive assessment, assume it is a good run to give it benefit of the doubt. Is this a good run? Keep your reply short.",
+    "badRunDescription": "If just a few TPC, iTPC or TPX RDO or sectors tripped, the run is still good. If any of the following happen, then this is a bad run. 1. beam lost. 2. critical errors. 3. Anode or cathod trip. ",
+    "additionalPrompt": "Does the run satisfy any of the above conditions? If any one condition is satisfied, the run is bad. If you are not sure, give the run benefit of the doubt and consider it a good run. Keep your reply short.",
     "maxPromptAttempt": 3,
     "temperature": 0.2
 }
