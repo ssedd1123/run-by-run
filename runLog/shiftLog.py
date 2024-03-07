@@ -83,7 +83,7 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
                 results[run] = RunInfo({'Error': 'Run info cannot be fetched from online database. Detailed error: ' + str(e)}, None, None, None, None)
                 junkReasons[run] = 'Run info cannot be fetched from online database. Detailed error: ' + str(e)
             else:
-                result, summary = sl.getEntriesAndSummary(driver, runYR, runStart, runEnd, timedelta(hours=3),
+                result, summary = sl.getEntriesAndSummary(driver, runYR, runStart, runEnd, timedelta(hours=10),
                                                           timedelta(minutes=90), timedelta(minutes=90), 
                                                           timeout, dp, pc, username, password)
                 selectedMessage = selectRun(result, run, dpSelect)
@@ -92,7 +92,7 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
                         del results[run]
                         continue
                 if summary is None:
-                    summary = 'Summary not found'
+                    summary = (runStart, 'Summary not found')
                 if minDuration is not None:
                     duration = runEnd - runStart
                     if duration < timedelta(seconds=minDuration):
