@@ -1,10 +1,6 @@
 import warnings
 import numpy as np
 import argparse
-import matplotlib.font_manager as font_manager
-font_dir = ['ttf']
-for font in font_manager.findSystemFonts(font_dir):
-    font_manager.fontManager.addfont(font)
 
 SMALL_SIZE = 18#15
 MEDIUM_SIZE = 21#18
@@ -65,11 +61,12 @@ def plotOutlier(ax, fig, runs, values, uncert,
         ax.axvline(id, linestyle='--', color='b')
     # out of bound runs
     idBelow = x[values < lowerBound]
+    runRejected = set(x[idRejected])
     meanBelow = means[np.searchsorted(edgeRuns, runs[idBelow])]
     for xarr, m in zip(idBelow, meanBelow):
         if lowerBound <= m and m <= upperBound:
             ax.annotate('', xytext=(xarr, m), xycoords='data', 
-                        xy=(xarr, lowerBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'), zorder=10)
+                        xy=(xarr, lowerBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r' if xarr in runRejected else 'b'), zorder=10)
         else:
             warnings.warn('Mean of a segment lies beyond the plotting region. This can happen if the weighting factor strongly skew the mean/median. You should widen the plot range with -pr <NO STD>')
 
@@ -78,7 +75,7 @@ def plotOutlier(ax, fig, runs, values, uncert,
     for xarr, m in zip(idAbove, meanAbove):
         if lowerBound <= m and m <= upperBound:
             ax.annotate('', xytext=(xarr, m), xycoords='data', 
-                        xy=(xarr, upperBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r'), zorder=10)
+                        xy=(xarr, upperBound), textcoords='data', arrowprops=dict(arrowstyle='->', ec='r' if xarr in runRejected else 'b'), zorder=10)
         else:
             warnings.warn('Mean of a segment lies beyond the plotting region. This can happen if the weighting factor strongly skew the mean/median. You should widen the plot range with -pr <NO STD>')
 
@@ -125,8 +122,6 @@ def main(runs, secMean, secStd,
     print('Plot QA result.')
     import matplotlib.pyplot as plt
 
-    plt.rcParams['font.family'] = 'Helvetica'
-       
     plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
     plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
     plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
@@ -224,7 +219,7 @@ if __name__ == '__main__':
 
     reasonsRejected = np.array(reasonsRejected)
     print('Plotting result')
-    main(runs, np.atleast_2d(np.average(x, axis=0)), np.atleast_2d(np.std(x, axis=0)),
+    main(runs, np.atleast_2d(np.average(x, axis=0)), 5*np.atleast_2d(np.std(x, axis=0)),
          x, xerr, runsRejected, reasonsRejected, 
          varNames, counts, [], 
          args.allRunID, args.plotRange, 5, args.pseudoID,
