@@ -200,11 +200,18 @@ if __name__ == '__main__':
     parser.add_argument('-ie', '--ignoreEmpty', action='store_true', help='If enable, runs where shift log entries are empty will be ignored and not appear in GUI or the bad run list.')
     parser.add_argument('-md', '--minDuration', default=None, type=float, help='Unit is seconds. If duration of a run is less than minDuration, the run is automatically considered bad.')
 
+    parser.add_argument('--test', action='store_true', help='Automatically compare AI\'s results to manual inspection and official bad runs.')
 
 
     args = parser.parse_args()
     if args.output is not None:
         raise DeprecationWarning('The flag -o is not used anymore because all loaded pages are cached automatically now. Run again with no -o option.')
+    if args.test:
+        # use test run list
+        print('Self-test mode.')
+        print('Will load bad run list for testing.')
+        args.input = 'selfTest/badrun.list'
+        args.runYR = 20
     main(args.input, args.runYR, args.timeStep, args.allOutput,
          args.badrun, args.posOutput, args.negOutput, args.useAI, 
          threshold=args.threshold, username=args.username, password=args.password, 
@@ -212,3 +219,7 @@ if __name__ == '__main__':
          ignoreEmpty=args.ignoreEmpty, minDuration=args.minDuration,
          jsonAI=args.jsonAI, forceAI=args.forceAI)
     print('*' * 100)
+
+    if args.test:
+        import selfTest.compareManual as cm
+        cm.main(args.badrun, 'selfTest/manualResult.txt')

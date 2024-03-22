@@ -156,7 +156,7 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
     print('LLM loaded.')
     reasons = {}
     print('Deciding if the run is good.')
-    print('Description of a bad run: ' + settings['badRunDescription'])
+    print('Description of a bad run: ' + settings['badRunDescription'] + '\n' + settings['additionalPrompt'])
     for runId, content in tqdm(result.items(), desc='LLM is judging'):
         if runId in skip:
             continue
