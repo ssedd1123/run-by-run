@@ -91,7 +91,7 @@ Response from AI are cached. The responses are saved in `.LLMCache` directory so
 
 ## Change bad run criteria
 
-You can describe what a bad run is in plain English in `LLM_settings.json`. If you do not want to overwrite your previous settings, you can copy that file and call it something else, then run,
+Create a copy of `jsons/LLM_settings_mid.json`, then describe what a bad run is in plain English in the new json file. Three example json files are provided in the jsons\ directory with various strictness in bad run definition. The script uses `jsons/LLM_settings_mid.json` by default. If you do not want to overwrite your previous settings, you can copy that file and call it something else, then run,
 
 ```bash
 python3 shiftLog.py -YR <Run Year> -i badrun.list -br newBadrun.list --useAI --jsonAI <the new json filename>
