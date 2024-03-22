@@ -1,0 +1,11 @@
+{
+    "model": "D:/Download/text-generation-webui-main/text-generation-webui-main/models/mistral-7b-instruct-v0.2.Q5_K_M.gguf",
+    "n_gpu_layers": 512,
+    "n_ctx": 2048,
+    "verbose": false,
+    "badRunDescription": "If any of the following happen, then this is a bad run. 1. beam lost. 2. entry says there is critical errors. 3. Anode or cathod trip. 4. Anything suspicious. ",
+    "additionalPrompt": "Does the run satisfy any of the above conditions? If any one condition is satisfied, the run is bad. If you are not sure, then the run is also bad. Keep the reply brief.",
+    "maxPromptAttempt": 3,
+    "temperature": 0.2,
+    "seed": 5
+}

@@ -189,7 +189,7 @@ if __name__ == '__main__':
     parser.add_argument('--skipUI', action='store_true', help='Will skip the user verification step. Only return junk that are identified automatically either with AI or just duration requirement.')
     parser.add_argument('--useAI', action='store_true', help='Use AI to select bad runs from shiftLog.')
     parser.add_argument('--forceAI', action='store_true', help='Force AI to not use cache and rerun.')
-    parser.add_argument('--jsonAI', default='LLM_settings.json', help='Json file for the AI settings')
+    parser.add_argument('--jsonAI', default='jsons/LLM_settings_mid.json', help='Json file for the AI settings')
     parser.add_argument('-th', '--threshold', type=float, default=0.99, help='Threshold of score higher than which a shift log entry will be consider bad by AI. Only used when TRANS model is used. (default: %(default)s)')
 
     parser.add_argument('-un', '--username', help='Username of the shift log. (Experimental. Unstable. Use at your own risk)')
