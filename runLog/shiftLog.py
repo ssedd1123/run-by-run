@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from prettytable import PrettyTable, ALL
 import getpass
 from collections import namedtuple, defaultdict
+from readFromROOT import getNamesAllTProfile, getVarNames, readFromROOT
 import re
 from tqdm import tqdm
 
@@ -29,20 +30,34 @@ def login():
     password = getpass.getpass('Enter shift log password: ')
     return username, password
 
-def getRunIdFromFile(filename):
-    with open(filename) as f:
-        runId = []
-        reasons = {}
-        lines = f.readlines()
-        
-        for l in lines:
-            lsplit = l.split(' ', 1)
-            id_ = lsplit[0].strip()
-            runId.append(id_)
-            if len(lsplit) == 2:
-                reasons[id_] = lsplit[1]
-            else:
-                reasons[id_] = 'None provided'
+def getRunIdFromFile(filename, varName=None, mapping=None):
+    if filename.endswith('.root'):
+        print('The input is a ROOT file.')
+        if varName is None:
+            print('No TProfile is specified. Will load run ID from the x-axis of the first TProfile contained in the file.')
+            varName = getNamesAllTProfile(filename)[0]
+        else:
+            varName = getVarNames(varName)[0]
+        print('Loading run ID from TProfile: %s' % varName)
+        if mapping is not None:
+            print('Will use mapping file: %s' % mapping)
+        runs, _, _, _ = readFromROOT(filename, [varName], mapping)
+        runId = [str(id_) for id_ in runs]
+        reasons = {str(id_): 'None provided' for id_ in runs}
+    else:
+        with open(filename) as f:
+            runId = []
+            reasons = {}
+            lines = f.readlines()
+            
+            for l in lines:
+                lsplit = l.split(' ', 1)
+                id_ = lsplit[0].strip()
+                runId.append(id_)
+                if len(lsplit) == 2:
+                    reasons[id_] = lsplit[1]
+                else:
+                    reasons[id_] = 'None provided'
     return runId, reasons
 
 def selectRun(results, runID, dp):
@@ -60,6 +75,7 @@ def selectRun(results, runID, dp):
 def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=False, timeout=60, ignoreEmpty=False, minDuration=None, **kwargs):
     results = {}
     dp = {}
+    NEvents = {}
     dpSelect = defaultdict(dict)
     junkReasons = {}
     try:
@@ -76,9 +92,10 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
         for i, run in tqdm(enumerate(runs), desc='Loading run history', total=len(runs)):
             run = str(run)
             results[run] = ['', '']
+            NEvents[run] = 0
     
             try:
-                runStart, runEnd = sl.findRunTime(run, runYR, driver, timeout, pc, username, password)
+                runStart, runEnd, NEvent = sl.findRunTime(run, runYR, driver, timeout, pc, username, password)
             except ValueError as e:
                 results[run] = RunInfo({'Error': 'Run info cannot be fetched from online database. Detailed error: ' + str(e)}, None, None, None, None)
                 junkReasons[run] = 'Run info cannot be fetched from online database. Detailed error: ' + str(e)
@@ -90,6 +107,7 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
                 if ignoreEmpty:
                     if not selectedMessage:
                         del results[run]
+                        del NEvents[run]
                         continue
                 if summary is None:
                     summary = (runStart, 'Summary not found')
@@ -98,13 +116,14 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
                     if duration < timedelta(seconds=minDuration):
                         junkReasons[run] = 'BAD RUN: the run lasted %d seconds < min threshold of %d seconds.' % (duration.seconds, minDuration)
                         selectedMessage = {runStart - timedelta(seconds=1): junkReasons[run], **selectedMessage}
+                NEvents[run] = NEvent
                 results[run] = RunInfo(selectedMessage, result, 
                                        summary[1], runStart, runEnd)
     finally:
         if driver is not None:
             driver.quit()
 
-    return results, junkReasons
+    return results, junkReasons, NEvents
 
 def printBriefDict(result):
     x = PrettyTable()
@@ -118,15 +137,28 @@ def printBriefDict(result):
     return x.get_string()
 
 
+def eventSummary(NEvents, badrunList):
+    totEvents = 0
+    badEvents = 0
+    for id, events in NEvents.items():
+        totEvents = totEvents + events
+        if id in badrunList:
+            badEvents = badEvents + events
+    print(u'\u2500' * 100)
+    print('Total number of runs = %d' % len(NEvents))
+    print('Total Statistics = %d' % totEvents)
+    print('Rejected Runs = %d (%.1f %%)' % (len(badrunList), float(len(badrunList))*100/len(NEvents)))
+    print('Rejected events = %d (%.1f%%)' % (badEvents, float(badEvents)*100/totEvents))
 
-def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, jsonAI, forceAI, **kwargs):
+
+def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, jsonAI, forceAI, debugAI, varNames, mapping, **kwargs):
     print('Reading bad run list from text file %s' % input)
-    runId, reasons = getRunIdFromFile(input)
+    runId, reasons = getRunIdFromFile(input, varNames, mapping)
     if username is None or password is None:
         username, password = login()
     pc = PageCache(timeStep)
     # load data from shiftLog, return junks that are easy to identify e.g. shift leader marked as junk, duration doesn't meet min requirement. 
-    result, junkReasons = getShiftLogDetailed(runId, pc, runYR, username=username, password=password, ignoreEmpty=ignoreEmpty, **kwargs)
+    result, junkReasons, NEvents = getShiftLogDetailed(runId, pc, runYR, username=username, password=password, ignoreEmpty=ignoreEmpty, **kwargs)
 
     if allOutput is not None:
         print('Saving human-readable shiftLog to %s' % allOutput)
@@ -134,7 +166,7 @@ def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI,
             f.write(printBriefDict(result))
 
     if useAI:
-        AIReasons = sentiment(result, 'LLM', skip=set(junkReasons.keys()), settings_json=jsonAI, threshold=threshold, forceAI=forceAI)
+        AIReasons = sentiment(result, 'LLM', skip=set(junkReasons.keys()), settings_json=jsonAI, threshold=threshold, forceAI=forceAI, debug=debugAI)
         junkReasons = {**AIReasons, **junkReasons}
         intro = 'AI thinks that %d runLog entries out of a total of %d are bad runs.\nBackground color will turn for red for those runs that are considered bad.' % (len(AIReasons), len(result))
     else:
@@ -163,8 +195,10 @@ def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI,
         with open(negOutput, 'w') as f:
             f.write(printBriefDict(neg))
 
+    eventSummary(NEvents, set(neg.keys()))
+
     # store bad run list with notes on the memo. 
-    with open(badrun, 'w') as f:
+    with open(badrun, 'w', encoding='utf-8') as f:
         f.write('\n'.join(['%s $ %s' % (id_, memo[id_]) for id_ in neg.keys()]))
 
 
@@ -201,6 +235,10 @@ if __name__ == '__main__':
     parser.add_argument('-md', '--minDuration', default=None, type=float, help='Unit is seconds. If duration of a run is less than minDuration, the run is automatically considered bad.')
 
     parser.add_argument('--test', action='store_true', help='Automatically compare AI\'s results to manual inspection and official bad runs.')
+    parser.add_argument('--debugAI', action='store_true', help='Print the prompt and response from AI.')
+
+    parser.add_argument('-v', '--varNames', help='(Optional, only used if input is a ROOT file) Txt files with all the variable names for QA. If it is not set, it will read ALL TProfiles in the ROOT file.')
+    parser.add_argument('-m', '--mapping', help ='(Optional, only used if input is a ROOT file) If x-axis of TProfile does not corresponds to STAR run ID, you can supply a file that translate bin low edge to STAR ID')
 
 
     args = parser.parse_args()
@@ -217,9 +255,11 @@ if __name__ == '__main__':
          threshold=args.threshold, username=args.username, password=args.password, 
          firefox=args.useFirefox, timeout=args.timeout, skipUI=args.skipUI, 
          ignoreEmpty=args.ignoreEmpty, minDuration=args.minDuration,
-         jsonAI=args.jsonAI, forceAI=args.forceAI)
+         jsonAI=args.jsonAI, forceAI=args.forceAI, debugAI=args.debugAI,
+         varNames=args.varNames, mapping=args.mapping)
     print('*' * 100)
 
     if args.test:
         import selfTest.compareManual as cm
-        cm.main(args.badrun, 'selfTest/manualResult.txt')
+        cm.main(args.badrun, 'selfTest/manualResult.txt', 'report.csv')
+        print('Self test results are saved to report.csv.')

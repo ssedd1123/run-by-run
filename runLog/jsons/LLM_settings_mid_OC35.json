@@ -1,0 +1,11 @@
+{
+    "model": "D:/LM-cache/TheBloke/openchat-3.5-1210-GGUF/openchat-3.5-1210.Q5_K_M.gguf",
+    "n_gpu_layers": 512,
+    "n_ctx": 2048,
+    "verbose": false,
+    "promptFormat": "I will give you the run log for run {runID} below. If any of the following happen, then this is a bad run. 1. beam lost. 2. entry says there is critical errors. 3. Anode or cathod trip. 4. Any other issues that you think is suspicious. Does the run satisfy any of the above conditions? If any one condition is satisfied, the run is bad, but if none of the conditions are satisfied, the run is good. Explain briefly.  This is the runlog for run {runID}:\n\n***{content}\n***\n\n Follow the instructions to the letter. If it is a bad run, say explicitly the phrase '{badrunKW}'. If it is not a bad run, say explicitly the phrase '{goodrunKW}'. If you can't determine, say '{badrunKW}'. Just say either '{goodrunKW} or '{badrunKW}' one or the other, not both phrases in the respond.",
+    "reprompt": "If it is a bad run, say explicitly the phrase '{badrunKW}'. If it is not a bad run, say explicitly the phrase '{goodrunKW}'. If you can't determine, say '{badrunKW}'. Just say the phrase.",
+    "maxPromptAttempt": 3,
+    "temperature": 0.2,
+    "seed": 5
+} 

@@ -1,5 +1,5 @@
 from Segmentation2 import segmentation, plotSegmentationAndRejection, mergeID
-from readFromROOT import getVarNames, readFromROOT, getNamesAllTProfile
+from runLog.readFromROOT import getVarNames, readFromROOT, getNamesAllTProfile
 from outlierDetector import outlierDetector
 from plotRejection import plotOutlier, appendRunInfo
 import plotRejection as pr
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--input', required=True, help='ROOT files that contains all the QA TProfile')
     parser.add_argument('-o', '--output', required=True, help='Filename for the output text file with all the bad runs')
     parser.add_argument('-bo', '--breakptOutput', default='breakpt.txt', help='Filename for the output text file with the break points.')
-    parser.add_argument('-v', '--varNames', required=True, help='Txt files with all the variable names for QA. If it is not set, it will read ALL TProfiles in the ROOT file.')
+    parser.add_argument('-v', '--varNames', help='Txt files with all the variable names for QA. If it is not set, it will read ALL TProfiles in the ROOT file.')
     parser.add_argument('-e', '--element', default='??+??', help='Element of your reaction')
     parser.add_argument('-s', '--sNN', default='??', help='Beam energy')
     parser.add_argument('-rr', '--rejectionRange', type=float, default=5, help='The factor of SD range beyon which a run is rejected (default: %(default)s)')

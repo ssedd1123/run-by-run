@@ -28,18 +28,25 @@ def findRunTime(runID, runYR, driver, timeout, pc, username, password):
     # see if it's mark as junk by shift Leader
     # should NOT have been produced in the first place
     # but it does happen
-    spans = soup.find_all('span', 'cr')
-    if len(spans) > 0 and 'Marked as Junk' in spans[0].text:
+    status = soup.find('td', text='Completion Status').find_next_sibling('td').find_all('span')
+    if status[0].text != 'Successful':
+        raise ValueError('The run %s did not complete successfully.' % runID)
+    if len(status) > 1 and 'Marked as Junk' in status[1].text:
         raise ValueError('Shift leader marked the run %s as junk' % runID)
     spans = soup.find_all('span', 'cg')
-    startTime = spans[0].text # first span should be RTS Start Time
+    startTime = soup.find('td', text='RTS Start Time').find_next_sibling('td').find('span', class_='cg').text
     startDateTime = parser.parse(startTime.lstrip('[').rstrip(']'))
-    endTime = spans[1].text # Second span should be RTS Stop Time
+    endTime = soup.find('td', text='RTS Stop Time').find_next_sibling('td').find('span', class_='cg').text
     endDateTime = parser.parse(endTime.lstrip('[').rstrip(']'))
 
     # convert GMT to Eastern Time (daylight saving IS considered)
     eastern = pytz.timezone('US/Eastern')
-    return startDateTime.astimezone(eastern), endDateTime.astimezone(eastern)
+
+    # find number of events
+    NEvents = soup.find('td', text='Events').find_next_sibling('td').text
+    # convert to int
+    NEvents = int(NEvents.split('=')[0])
+    return startDateTime.astimezone(eastern), endDateTime.astimezone(eastern), NEvents
 
 def parseContent(cell):
     # check if there are multiple versions

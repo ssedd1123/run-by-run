@@ -2,10 +2,10 @@ from prettytable import PrettyTable
 import pandas as pd
 import numpy as np
 
-def main(result, ref):
+def main(result, ref, txt=None):
     refData = pd.read_csv(ref)
-    resData = pd.read_csv(result, sep='$', header=None, names=['runID', 'reason'], dtype={0: int})
-    resData = set(resData[resData['reason'].isnull() | (resData['reason'].str.strip() != '')]['runID'])
+    resFullData = pd.read_csv(result, sep='$', header=None, names=['runID', 'reason'], dtype={0: int})
+    resData = set(resFullData[resFullData['reason'].isnull() | (resFullData['reason'].str.strip() != '')]['runID'])
 
     # bad run with critical errors
     # must be listed in desending order of serverity
@@ -64,6 +64,10 @@ def main(result, ref):
     table.add_row(['Good runs', NOManual, '%d (%.1f%%)' % (NONewResult, 100*float(NONewResult)/NOManual), '%d (%.1f%%)' % (NOOfficial, 100*float(NOOfficial)/NOManual)])
 
     print(table)
+    if txt is not None:
+        resFullData.rename(columns={'reason': 'AI response'}, inplace=True)
+        refData = pd.merge(refData, resFullData, on='runID', how='outer')
+        refData.to_csv(txt)
  
 
 if __name__ == '__main__':

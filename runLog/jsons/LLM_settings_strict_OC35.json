@@ -1,11 +1,11 @@
 {
-    "model": "D:/Download/text-generation-webui-main/text-generation-webui-main/models/mistral-7b-instruct-v0.2.Q5_K_M.gguf",
+    "model": "D:/LM-cache/TheBloke/openchat-3.5-1210-GGUF/openchat-3.5-1210.Q5_K_M.gguf",
     "n_gpu_layers": 512,
     "n_ctx": 2048,
     "verbose": false,
     "promptFormat": "I will give you the run log for run {runID} below. If any of the following happen, then this is a bad run. 1. beam lost. 2. critical errors. 3. anything wrong with ETOF or is removed. 4. Anode or cathod trip. 5. any iTPC, TPC or TPX RDO sector tripped, failed or masked out. 6. Any other issues that you think is suspicious. Does the run satisfy any of the above conditions? If any one condition is satisfied, the run is bad. If none of the conditions is satisfied, then the run is good. This is the runlog for run {runID}:\n\n***{content}\n***\n\n If it is a bad run, say explicitly the phrase '{badrunKW}'. If it is not a bad run, say explicitly the phrase '{goodrunKW}'. If you can't determine, say '{badrunKW}'. Just say either '{goodrunKW} or '{badrunKW}' one or the other, not both phrases in the respond. Please say which condition is violated. ",
     "reprompt": "If it is a bad run, say explicitly the phrase '{badrunKW}'. If it is not a bad run, say explicitly the phrase '{goodrunKW}'. If you can't determine, say '{badrunKW}'. Just say the phrase, one or the other, not both at once.",
     "maxPromptAttempt": 3,
-    "temperature": 0.2,
+    "temperature": 0.8,
     "seed": 5
 } 

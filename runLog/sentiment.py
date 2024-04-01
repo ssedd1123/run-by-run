@@ -78,7 +78,7 @@ def sentimentNLTK(result, skip, **kwargs):
     return negRuns, negHistory, negSummary, reasons
 
 
-def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', forceAI=False, **kwargs):
+def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', forceAI=False, debug=False, **kwargs):
     # load settings of LLM from json
     with open(settings_json) as f:
         settings = json.load(f)
@@ -98,12 +98,18 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
                 #{"role": "system", "content": "I am an assistant who help users identify bad runs from runLog. I will follow user's instruction truthfully and accurately. "},
                 {
                     "role": "user",
-                    "content": "This is the run log of run  %s\n%s\n%s. %s\n " % (runID, content, settings['badRunDescription'], settings['additionalPrompt']) +
-                               "Follow the instructions to the letter. If it is a bad run, say explicitly the phrase '%s'. If it is not a bad run, say explicitly the phrase '%s'." % (badrunKW, goodrunKW)
+                    "content": settings['promptFormat'].format(runID=runID, content=content, badrunKW=badrunKW, goodrunKW=goodrunKW) 
                 }
             ]
 
+        if debug:
+            print('[DEBUG] User:')
+            print(messages[0]['content'])
+
         response = llm.create_chat_completion(messages=messages, temperature=settings['temperature'])
+        if debug:
+            print('[DEBUG] AI:')
+            print(response['choices'][0]['message']['content'])
         reason = response['choices'][0]['message']['content'].replace('\n', ' ')
         # if both good phrase and bad phrase are mentioned, prompt LLM for more clarification
         if not (badrunKW in reason and goodrunKW in reason):
@@ -114,7 +120,7 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
 
         # if LLM fails to follow direction, we will prompt it repeatedly until it gives us the answer, or if we run out of time and declare the run bad
         messages.append({"role": "system", "content": reason})
-        messages.append({'role': 'user', 'content': "%s. Just say the phrase." % settings['additionalPrompt']})
+        messages.append({'role': 'user', 'content': settings['reprompt'].format(badrunKW=badrunKW, goodrunKW=goodrunKW)})
         for i in range(settings['maxPromptAttempt']):
             response = llm.create_chat_completion(messages=messages)
             response = response['choices'][0]['message']['content']
@@ -156,7 +162,8 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
     print('LLM loaded.')
     reasons = {}
     print('Deciding if the run is good.')
-    print('Description of a bad run: ' + settings['badRunDescription'] + '\n' + settings['additionalPrompt'])
+    print('Prompt template:')
+    print(settings['promptFormat'])
     for runId, content in tqdm(result.items(), desc='LLM is judging'):
         if runId in skip:
             continue
