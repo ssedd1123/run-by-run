@@ -11,7 +11,7 @@ python3 -m pip install nltk prettytable selenium prompt_toolkit beautifulsoup4 p
 If you wish to use AI, you need to install `llama_cpp`. For CPU-only usage (NOT RECOMMENDED!!!), run:
 
 ```bash
-python3 -m pip install llama_cpp
+conda install llama_cpp
 ```
 
 For GPU support, you must refer to platform-specific instructions as configurations may vary based on your GPU hardware. Unfortunately, there is no universal script for cross-platform compatibility.
