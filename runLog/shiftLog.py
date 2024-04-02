@@ -137,6 +137,14 @@ def printBriefDict(result):
     return x.get_string()
 
 
+def human_format(num):
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    return '{:.2f}{}'.format(num, ['', 'K', 'M', 'B', 'T', 'P'][magnitude])
+
+
 def eventSummary(NEvents, badrunList):
     totEvents = 0
     badEvents = 0
@@ -146,9 +154,9 @@ def eventSummary(NEvents, badrunList):
             badEvents = badEvents + events
     print(u'\u2500' * 100)
     print('Total number of runs = %d' % len(NEvents))
-    print('Total Statistics = %d' % totEvents)
+    print('Total Statistics = %d = %s' % (totEvents, human_format(totEvents)))
     print('Rejected Runs = %d (%.1f %%)' % (len(badrunList), float(len(badrunList))*100/len(NEvents)))
-    print('Rejected events = %d (%.1f%%)' % (badEvents, float(badEvents)*100/totEvents))
+    print('Rejected events = %d = %s (%.1f%%)' % (badEvents, human_format(badEvents), float(badEvents)*100/totEvents))
 
 
 def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, jsonAI, forceAI, debugAI, varNames, mapping, **kwargs):
