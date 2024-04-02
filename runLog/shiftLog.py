@@ -72,7 +72,7 @@ def selectRun(results, runID, dp):
 
     return dp[runID]
 
-def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=False, timeout=60, ignoreEmpty=False, minDuration=None, **kwargs):
+def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=False, timeout=60, ignoreEmpty=False, minDuration=None, cacheOnly=False, **kwargs):
     results = {}
     dp = {}
     NEvents = {}
@@ -80,14 +80,18 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
     junkReasons = {}
     try:
         #driver = browser.getDriver(firefox, timeout, username, password)
-        if firefox:
-            driver = webdriver.Firefox()
+        if cacheOnly:
+            driver = None 
+            # this will throw error if HTML is not available on cache!!!
         else:
-            import chromedriver_autoinstaller
-            chromedriver_autoinstaller.install()
-            driver = webdriver.Chrome()
+            if firefox:
+                driver = webdriver.Firefox()
+            else:
+                import chromedriver_autoinstaller
+                chromedriver_autoinstaller.install()
+                driver = webdriver.Chrome()
 
-        driver.set_page_load_timeout(timeout)
+            driver.set_page_load_timeout(timeout)
     
         for i, run in tqdm(enumerate(runs), desc='Loading run history', total=len(runs)):
             run = str(run)
@@ -119,6 +123,10 @@ def getShiftLogDetailed(runs, pc, runYR, username=None, password=None, firefox=F
                 NEvents[run] = NEvent
                 results[run] = RunInfo(selectedMessage, result, 
                                        summary[1], runStart, runEnd)
+    except AttributeError as e:
+        if cacheOnly:
+            raise AttributeError(str(e) + '\nAttributeError occurs when CacheOnly is enabled. A possibility is that the script cannot fetch the required HTML from cache. Try again with CacheOnly disabled.')
+        raise e
     finally:
         if driver is not None:
             driver.quit()
@@ -223,7 +231,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Robot that fetch shiftLog online')
     parser.add_argument('-i', '--input', required=True, help='Text file with all the bad runs from QA script')
     parser.add_argument('-o', '--output', help='Deprecated. All output are saved automatically in runLog/HTML. Will ignore this option')
-    parser.add_argument('-br', '--badrun', required=True, help='Name of the text file of all the bad runs')
+    parser.add_argument('-br', '--badrun', default='selectedbadrun.list', help='Name of the text file of all the bad runs')
     parser.add_argument('-t', '--timeStep', type=float, default=0.5, help='Refresh interval to fetch run-log. Cannot be too short to avoid DDoS.')
     parser.add_argument('-ao', '--allOutput', help='Name of the human readible file to which all run are stored.')
     parser.add_argument('-po', '--posOutput', help='Name of the human readible file to which positive runs are stored')
@@ -247,6 +255,9 @@ if __name__ == '__main__':
 
     parser.add_argument('-v', '--varNames', help='(Optional, only used if input is a ROOT file) Txt files with all the variable names for QA. If it is not set, it will read ALL TProfiles in the ROOT file.')
     parser.add_argument('-m', '--mapping', help ='(Optional, only used if input is a ROOT file) If x-axis of TProfile does not corresponds to STAR run ID, you can supply a file that translate bin low edge to STAR ID')
+    parser.add_argument('--cacheOnly', action='store_true', help='Only read cached HTML. Will not open any browsers. Will throw errors if this option is enabled and not all required HTMLs are cached.')
+
+
 
 
     args = parser.parse_args()
@@ -264,7 +275,7 @@ if __name__ == '__main__':
          firefox=args.useFirefox, timeout=args.timeout, skipUI=args.skipUI, 
          ignoreEmpty=args.ignoreEmpty, minDuration=args.minDuration,
          jsonAI=args.jsonAI, forceAI=args.forceAI, debugAI=args.debugAI,
-         varNames=args.varNames, mapping=args.mapping)
+         varNames=args.varNames, mapping=args.mapping, cacheOnly=args.cacheOnly)
     print('*' * 100)
 
     if args.test:
