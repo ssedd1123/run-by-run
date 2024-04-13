@@ -41,7 +41,7 @@ class PageCache:
                                              EC.title_contains('Unauthorize')))
      
         if 'error' in driver.title.lower() or 'unauthorize' in driver.title.lower():
-            raise RuntimeError('Cannot load shift log')
+            raise RuntimeError('Cannot load shift log. Verify that your username and password are correct.')
 
         with open(os.path.join(self._dir, filename + '.html'), 'w', encoding='utf-8') as f:
             f.write('<!-- ' + url + '-->\n' + driver.page_source)
