@@ -88,6 +88,9 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
     #llm = Llama(model_path=r'D:\Download\text-generation-webui-main\text-generation-webui-main\models\mistral-7b-instruct-v0.2.Q5_K_M.gguf', n_gpu_layers=512, n_ctx=512, verbose=False)
     llm = Llama(model_path=settings['model'], n_gpu_layers=settings['n_gpu_layers'], n_ctx=settings['n_ctx'], verbose=settings['verbose'], seed=settings['seed'])
 
+    stop_tokens = settings['stop'] if 'stop' in settings else []
+
+
     def askLLMIsRunGood(runID, content):
         # ask LLM to give explicit result
         # look for the following phrase
@@ -106,7 +109,7 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
             print('[DEBUG] User:')
             print(messages[0]['content'])
 
-        response = llm.create_chat_completion(messages=messages, temperature=settings['temperature'])
+        response = llm.create_chat_completion(messages=messages, temperature=settings['temperature'], stop=stop_tokens)
         if debug:
             print('[DEBUG] AI:')
             print(response['choices'][0]['message']['content'])
@@ -118,11 +121,12 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
             elif goodrunKW in reason:
                 return True, reason
 
+
         # if LLM fails to follow direction, we will prompt it repeatedly until it gives us the answer, or if we run out of time and declare the run bad
         messages.append({"role": "system", "content": reason})
         messages.append({'role': 'user', 'content': settings['reprompt'].format(badrunKW=badrunKW, goodrunKW=goodrunKW)})
         for i in range(settings['maxPromptAttempt']):
-            response = llm.create_chat_completion(messages=messages)
+            response = llm.create_chat_completion(messages=messages, stop=stop_tokens)
             response = response['choices'][0]['message']['content']
             if not (badrunKW in response and goodrunKW in response):
                 if badrunKW in response:

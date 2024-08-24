@@ -2,6 +2,8 @@ from hashlib import sha256
 import os
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
+from urllib.parse import urlparse
+
 import time
 
 class PageCache:
@@ -12,14 +14,18 @@ class PageCache:
         self._timeSep = timeSep
 
     def getUrl(self, url, driver, timeout, expected_title):
-        prefix = sha256(url.encode()).hexdigest()
+        # need to get rid of username and password
+        parsed = urlparse(url)
+        replaced = parsed._replace(netloc="{}:{}@{}".format("???", "???", parsed.hostname))
+        stripped_url = replaced.geturl()
+        prefix = sha256(stripped_url.encode()).hexdigest()
         filename = prefix
         for i in range(1, 10000):
             if os.path.isfile(os.path.join(self._dir, filename + '.html')):
                 with open(os.path.join(self._dir, filename + '.html'), encoding='utf-8') as f:
                     content = f.read()
                     urlFile, content = content.split('\n', 1)
-                    if urlFile == '<!-- ' + url + '-->':
+                    if urlFile == '<!-- ' + stripped_url + '-->':
                         return content
                     else:
                         filename = prefix + '_%d' % i
@@ -44,7 +50,7 @@ class PageCache:
             raise RuntimeError('Cannot load shift log. Verify that your username and password are correct.')
 
         with open(os.path.join(self._dir, filename + '.html'), 'w', encoding='utf-8') as f:
-            f.write('<!-- ' + url + '-->\n' + driver.page_source)
+            f.write('<!-- ' + stripped_url + '-->\n' + driver.page_source)
         time.sleep(self._timeSep)
         return driver.page_source
 

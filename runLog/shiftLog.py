@@ -167,14 +167,18 @@ def eventSummary(NEvents, badrunList):
     print('Rejected events = %d = %s (%.1f%%)' % (badEvents, human_format(badEvents), float(badEvents)*100/totEvents))
 
 
-def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, jsonAI, forceAI, debugAI, varNames, mapping, **kwargs):
+def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI, threshold, username, password, skipUI, ignoreEmpty, jsonAI, forceAI, debugAI, varNames, mapping, cacheOnly, **kwargs):
     print('Reading bad run list from text file %s' % input)
     runId, reasons = getRunIdFromFile(input, varNames, mapping)
     if username is None or password is None:
-        username, password = login()
+        if cacheOnly:
+            # No need for password if we are loading from local cache
+            username, password = '', ''
+        else:
+            username, password = login()
     pc = PageCache(timeStep)
     # load data from shiftLog, return junks that are easy to identify e.g. shift leader marked as junk, duration doesn't meet min requirement. 
-    result, junkReasons, NEvents = getShiftLogDetailed(runId, pc, runYR, username=username, password=password, ignoreEmpty=ignoreEmpty, **kwargs)
+    result, junkReasons, NEvents = getShiftLogDetailed(runId, pc, runYR, username=username, password=password, ignoreEmpty=ignoreEmpty, cacheOnly=cacheOnly, **kwargs)
 
     if allOutput is not None:
         print('Saving human-readable shiftLog to %s' % allOutput)
