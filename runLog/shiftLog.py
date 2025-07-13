@@ -219,7 +219,7 @@ def main(input, runYR, timeStep, allOutput, badrun, posOutput, negOutput, useAI,
 
     # store bad run list with notes on the memo. 
     with open(badrun, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(['%s $ %s' % (id_, memo[id_]) for id_ in neg.keys()]))
+        f.write('\n'.join(['%s $ %d $ %s' % (id_, NEvents[id_], memo[id_]) for id_ in neg.keys()]))
 
 
 def printBanner():

@@ -65,9 +65,23 @@ You will not be prompted to select bad runs. Only runs with short duration will 
 
 To utilize AI, you need the LLM file stored as a gguf file. Various LLMs can be downloaded from Hugging Face (search for it). Keep in mind that not all LLMs are equal in intelligence; some may not follow instructions well.
 
-The Mistral 7B instruct model was tested and found to work effectively. Ensure you have at least 8 GB of RAM or VRAM for GPU usage.
+The Microsoft Phi4 model was tested and found to work effectively. Ensure you have at least 8 GB of RAM or VRAM for GPU usage.
 
 To run AI, modify the "model" entry in `LLM_settings.json` to point to the gguf file. Adjust the "badRunDescription" according to your needs.
+
+When you switch to using a new AI, remember to first test if they obtain instructions by runing self test,
+
+```bash
+python3 shiftLog.py --test --jsonAI jsons\<insert json file> -i test -YR 0 --useAI -md 0 --skipUI
+```
+
+Make sure the accuracy make sense before using it.
+
+Here's the default settings for FXT 7.2 GeV data for reference,
+
+```bash
+python3 shiftLog.py --jsonAI jsons\LLM_settings_mid_Phi4.json -i badrun_7.2GeV.list -YR 20 --useAI -md 120 --skipUI
+```
 
 Use the following command to create a bad run list automatically:
 

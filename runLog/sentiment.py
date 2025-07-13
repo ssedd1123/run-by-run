@@ -180,6 +180,8 @@ def sentimentLLM(result, skip, threshold=0, settings_json='LLM_settings.json', f
                 #response = askLLM(runId, text, "A run is bad if it suffers unexpected beam lost, or a lot of errors, or suffer critical error, or it says explicity that the run is bad, otherwise they are good. However, if only one or two sectors are tripped, it's still good. If you cannot made definitive assessment, assume it is bad.")
                 goodRun, response = LLMCache(runId, text, forceAI)
             except Exception as e:
+                if debug:
+                    raise e
                 response = 'LLM encounters an error: ' + str(e)
                 goodRun = False
         if not goodRun:
