@@ -4,7 +4,7 @@ import numpy as np
 
 def main(result, ref, txt=None):
     refData = pd.read_csv(ref)
-    resFullData = pd.read_csv(result, sep='$', header=None, names=['runID', 'reason'], dtype={0: int})
+    resFullData = pd.read_csv(result, sep='$', header=None, names=['runID', 'entries', 'reason'], dtype={0: int})
     resData = set(resFullData[resFullData['reason'].isnull() | (resFullData['reason'].str.strip() != '')]['runID'])
 
     # bad run with critical errors
